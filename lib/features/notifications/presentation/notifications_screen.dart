@@ -178,8 +178,8 @@ class _NotificationCard extends ConsumerWidget {
       tint: n.read
           ? null
           : Color.alphaBlend(
-              scheme.primary.withValues(alpha: .07),
-              GlassTokens.of(context).fill,
+              scheme.primary.withValues(alpha: .06),
+              scheme.surfaceContainerLowest,
             ),
       onTap: () async {
         if (!n.read) {

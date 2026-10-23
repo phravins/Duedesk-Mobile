@@ -23,6 +23,7 @@ class _AppState extends ConsumerState<DueDeskApp> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _clock = Timer.periodic(const Duration(minutes: 1), (_) {
       ref.invalidate(todayProvider);
+      ref.read(appLockProvider.notifier).checkIdle();
       ref.read(liveUpdatesProvider).tick();
     });
     // Check for reminders as soon as a workspace opens or the organisation

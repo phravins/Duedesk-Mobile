@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import '../../shared/models/models.dart';
 import 'local_store.dart';
+import 'storage_cipher.dart';
 
 /// Keeps the workspace as ordinary files in a folder on the device's drive:
 /// `workspace.json` holds the records and `files/` holds attachments.
@@ -10,9 +11,13 @@ import 'local_store.dart';
 /// Every write goes to a temporary file that is then renamed over the old
 /// one, so a crash or power cut leaves either the previous or the new copy,
 /// never a half-written file. Operations run one at a time.
+///
+/// With a [cipher], records and attachments are encrypted at rest, so the
+/// files are unreadable outside DueDesk (for example in a device backup).
 class FileLocalStore implements LocalStore {
   final Directory root;
-  FileLocalStore(this.root);
+  final StorageCipher? cipher;
+  FileLocalStore(this.root, {this.cipher});
   Future<void> _pending = Future.value();
 
   String _path(String name) => '${root.path}${Platform.pathSeparator}$name';
@@ -35,15 +40,21 @@ class FileLocalStore implements LocalStore {
   Future<void> _replace(File target, List<int> bytes) async {
     await target.parent.create(recursive: true);
     final temp = File('${target.path}.tmp');
-    await temp.writeAsBytes(bytes, flush: true);
+    final stored = cipher == null ? bytes : await cipher!.seal(bytes);
+    await temp.writeAsBytes(stored, flush: true);
     await temp.rename(target.path);
+  }
+
+  Future<Uint8List> _load(File file) async {
+    final bytes = await file.readAsBytes();
+    return cipher == null ? bytes : cipher!.open(bytes);
   }
 
   @override
   Future<WorkspaceData?> read() => _serial(() async {
     if (!await workspaceFile.exists()) return null;
     return WorkspaceData.fromJson(
-      jsonDecode(await workspaceFile.readAsString()) as Json,
+      jsonDecode(utf8.decode(await _load(workspaceFile))) as Json,
     );
   });
 
@@ -59,7 +70,7 @@ class FileLocalStore implements LocalStore {
   @override
   Future<Uint8List?> getFile(String id) => _serial(() async {
     final file = _attachment(id);
-    return await file.exists() ? file.readAsBytes() : null;
+    return await file.exists() ? _load(file) : null;
   });
 
   @override

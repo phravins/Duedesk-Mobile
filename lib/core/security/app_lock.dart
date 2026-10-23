@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:local_auth/local_auth.dart';
 import '../../app/providers.dart';
+import 'secure_screen.dart';
 
 /// Keychain items stay on this device: they are not restored to another
 /// phone from a backup, and are readable once the device has been unlocked.
@@ -122,6 +123,9 @@ class AppLockState {
   final bool biometrics;
   final bool privacyShield;
 
+  /// Android: block screenshots and screen recording.
+  final bool blockCapture;
+
   /// How long the app may sit in the background before it locks again.
   final Duration timeout;
   final int failures;
@@ -132,6 +136,7 @@ class AppLockState {
     this.locked = false,
     this.biometrics = false,
     this.privacyShield = true,
+    this.blockCapture = false,
     this.timeout = const Duration(minutes: 1),
     this.failures = 0,
     this.blockedUntil,
@@ -142,6 +147,7 @@ class AppLockState {
     bool? locked,
     bool? biometrics,
     bool? privacyShield,
+    bool? blockCapture,
     Duration? timeout,
     int? failures,
     DateTime? blockedUntil,
@@ -152,6 +158,7 @@ class AppLockState {
     locked: locked ?? this.locked,
     biometrics: biometrics ?? this.biometrics,
     privacyShield: privacyShield ?? this.privacyShield,
+    blockCapture: blockCapture ?? this.blockCapture,
     timeout: timeout ?? this.timeout,
     failures: failures ?? this.failures,
     blockedUntil: clearBlock ? null : blockedUntil ?? this.blockedUntil,
@@ -172,6 +179,9 @@ class AppLockController extends Notifier<AppLockState> {
   static const maxAttempts = 10;
   static const _pinKey = 'app_lock_passcode';
   static const _failuresKey = 'app_lock_failures';
+
+  /// Locks after this long without a touch, even with the app open.
+  static const idleTimeout = Duration(minutes: 5);
   static const timeouts = [
     Duration.zero,
     Duration(minutes: 1),
@@ -179,6 +189,7 @@ class AppLockController extends Notifier<AppLockState> {
     Duration(minutes: 15),
   ];
   DateTime? _backgroundedAt;
+  DateTime? _lastActivity;
 
   /// Overridable clock for tests.
   DateTime Function() now = DateTime.now;
@@ -188,10 +199,13 @@ class AppLockController extends Notifier<AppLockState> {
   @override
   AppLockState build() {
     final prefs = ref.read(preferencesProvider);
+    final blockCapture = prefs.getBool('blockScreenshots') ?? false;
     Future.microtask(_load);
+    if (blockCapture) Future.microtask(() => SecureScreen.set(true));
     return AppLockState(
       biometrics: prefs.getBool('lockBiometrics') ?? false,
       privacyShield: prefs.getBool('privacyShield') ?? true,
+      blockCapture: blockCapture,
       // A minute's grace lets people pick a file or photo without relocking.
       timeout: Duration(seconds: prefs.getInt('lockTimeout') ?? 60),
     );
@@ -299,7 +313,22 @@ class AppLockController extends Notifier<AppLockState> {
   }
 
   void lock() {
+    _lastActivity = null;
     if (state.enabled) state = state.copyWith(locked: true);
+  }
+
+  /// Called on every touch; see [checkIdle].
+  void activity() => _lastActivity = now();
+
+  /// Locks a passcode-protected app left open and untouched for
+  /// [idleTimeout], for example on a desk.
+  void checkIdle() {
+    final last = _lastActivity ??= now();
+    if (state.enabled &&
+        !state.locked &&
+        now().difference(last) >= idleTimeout) {
+      lock();
+    }
   }
 
   void backgrounded() => _backgroundedAt ??= now();
@@ -322,6 +351,12 @@ class AppLockController extends Notifier<AppLockState> {
   Future<void> setTimeout(Duration value) async {
     await ref.read(preferencesProvider).setInt('lockTimeout', value.inSeconds);
     state = state.copyWith(timeout: value);
+  }
+
+  Future<void> setBlockCapture(bool value) async {
+    await ref.read(preferencesProvider).setBool('blockScreenshots', value);
+    await SecureScreen.set(value);
+    state = state.copyWith(blockCapture: value);
   }
 
   Future<void> setPrivacyShield(bool value) async {

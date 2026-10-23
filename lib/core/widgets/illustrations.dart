@@ -1,7 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-enum DeskArt { clear, documents, search, connection, attention }
+/// Hand-drawn scenes in ink, sand, clay and sage.
+enum DeskArt {
+  clear,
+  documents,
+  search,
+  connection,
+  attention,
+  welcome,
+  notifications,
+  security,
+  calendar,
+}
 
 class DeskIllustration extends StatelessWidget {
   final DeskArt kind;
@@ -51,7 +62,7 @@ class DeskIllustration extends StatelessWidget {
   }
 }
 
-/// A centred, tinted rounded tile with the glyph in the accent colour.
+/// A centred, tinted square tile with the glyph in the accent colour.
 /// The glyph is always 55% of the tile so icons look balanced at any size.
 class IllustratedIcon extends StatelessWidget {
   final IconData icon;
@@ -60,7 +71,7 @@ class IllustratedIcon extends StatelessWidget {
   const IllustratedIcon({
     super.key,
     required this.icon,
-    this.color = const Color(0xFF6C63FF),
+    this.color = const Color(0xFFC6613F),
     this.size = 40,
   });
   @override
@@ -72,7 +83,7 @@ class IllustratedIcon extends StatelessWidget {
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: color.withValues(alpha: dark ? .22 : .12),
-        borderRadius: BorderRadius.circular(size * .3),
+        borderRadius: BorderRadius.circular(size * .22),
       ),
       child: Icon(
         icon,

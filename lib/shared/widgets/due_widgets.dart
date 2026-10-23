@@ -10,12 +10,12 @@ import '../../core/utils/due_dates.dart';
 import '../models/models.dart';
 
 Color statusColor(DueStatus status) => switch (status) {
-  DueStatus.overdue => const Color(0xFFBA3448),
+  DueStatus.overdue => const Color(0xFFB53333),
   DueStatus.dueToday => const Color(0xFFA4540B),
-  DueStatus.dueSoon => const Color(0xFF8E6411),
-  DueStatus.completed || DueStatus.renewed => const Color(0xFF14794F),
-  DueStatus.inProgress => const Color(0xFF5950D7),
-  _ => const Color(0xFF506A8D),
+  DueStatus.dueSoon => const Color(0xFF8A6A12),
+  DueStatus.completed || DueStatus.renewed => const Color(0xFF3F7D58),
+  DueStatus.inProgress => const Color(0xFF4F6FA0),
+  _ => const Color(0xFF5E6B7A),
 };
 Color statusTextColor(BuildContext context, DueStatus status) =>
     Theme.of(context).brightness == Brightness.dark
@@ -43,7 +43,7 @@ class DueStatusBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: color.withValues(alpha: .12),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AppSizes.radiusSm),
       ),
       child: Text(
         status.label,
@@ -235,7 +235,7 @@ class CompanySwitcher extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final org = ref.watch(organisationProvider);
     return InkWell(
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
       onTap: () => glassSheet(
         context,
         Consumer(

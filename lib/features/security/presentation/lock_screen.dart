@@ -8,6 +8,7 @@ import '../../../core/security/app_lock.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/haptics.dart';
 import '../../../core/widgets/glass.dart';
+import '../../../core/widgets/illustrations.dart';
 
 /// Six dots that fill as digits are entered and shake on a wrong passcode.
 class PasscodeDots extends StatelessWidget {
@@ -32,12 +33,15 @@ class PasscodeDots extends StatelessWidget {
               AnimatedContainer(
                 duration: const Duration(milliseconds: 140),
                 margin: const EdgeInsets.symmetric(horizontal: 8),
-                width: 13,
-                height: 13,
+                width: 12,
+                height: 12,
                 decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: i < filled ? scheme.onSurface : Colors.transparent,
-                  border: Border.all(color: scheme.onSurface, width: 1.4),
+                  borderRadius: BorderRadius.circular(3),
+                  color: i < filled ? scheme.primary : Colors.transparent,
+                  border: Border.all(
+                    color: i < filled ? scheme.primary : scheme.outline,
+                    width: 1.4,
+                  ),
                 ),
               ),
           ],
@@ -52,7 +56,7 @@ class PasscodeDots extends StatelessWidget {
   }
 }
 
-/// A round, frosted number pad in the style of the iOS passcode screen.
+/// A plain number pad: squared keys with a hairline border.
 class PasscodeKeypad extends StatelessWidget {
   final ValueChanged<String> onDigit;
   final VoidCallback onDelete;
@@ -67,18 +71,17 @@ class PasscodeKeypad extends StatelessWidget {
   });
   @override
   Widget build(BuildContext context) {
-    final glass = GlassTokens.of(context);
     final scheme = Theme.of(context).colorScheme;
     Widget key(String digit) => _Key(
       label: digit,
       onTap: enabled ? () => onDigit(digit) : null,
-      color: glass.fill,
-      border: glass.border,
+      color: scheme.surfaceContainerLowest,
+      border: scheme.outlineVariant,
       child: Text(
         digit,
         style: TextStyle(
-          fontSize: 28,
-          fontWeight: FontWeight.w400,
+          fontSize: 26,
+          fontWeight: FontWeight.w500,
           color: scheme.onSurface,
         ),
       ),
@@ -93,13 +96,13 @@ class PasscodeKeypad extends StatelessWidget {
       children: [
         for (final row in rows)
           Padding(
-            padding: const EdgeInsets.only(bottom: 14),
+            padding: const EdgeInsets.only(bottom: 10),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 for (final d in row)
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
                     child: key(d),
                   ),
               ],
@@ -109,15 +112,15 @@ class PasscodeKeypad extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: SizedBox.square(dimension: 74, child: extra),
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: SizedBox(width: 84, height: 60, child: extra),
             ),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 6),
               child: key('0'),
             ),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 6),
               child: _Key(
                 label: 'Delete',
                 onTap: enabled ? onDelete : null,
@@ -155,15 +158,15 @@ class _Key extends StatelessWidget {
     child: Material(
       type: MaterialType.transparency,
       child: Ink(
-        width: 74,
-        height: 74,
+        width: 84,
+        height: 60,
         decoration: BoxDecoration(
-          shape: BoxShape.circle,
+          borderRadius: BorderRadius.circular(AppSizes.radiusLg),
           color: color,
           border: border == null ? null : Border.all(color: border!),
         ),
         child: InkWell(
-          customBorder: const CircleBorder(),
+          borderRadius: BorderRadius.circular(AppSizes.radiusLg),
           onTap: onTap == null
               ? null
               : () {
@@ -335,7 +338,10 @@ class _LockScreenState extends ConsumerState<LockScreen>
                         Column(
                           children: [
                             const SizedBox(height: 12),
-                            const BrandMark(size: 52),
+                            const DeskIllustration(
+                              kind: DeskArt.security,
+                              size: 110,
+                            ),
                             const SizedBox(height: 16),
                             Semantics(
                               header: true,
@@ -380,7 +386,9 @@ class _LockScreenState extends ConsumerState<LockScreen>
                                   label: 'Unlock with Face ID or Touch ID',
                                   excludeSemantics: true,
                                   child: InkWell(
-                                    customBorder: const CircleBorder(),
+                                    borderRadius: BorderRadius.circular(
+                                      AppSizes.radiusLg,
+                                    ),
                                     onTap: () => ref
                                         .read(appLockProvider.notifier)
                                         .unlockWithBiometrics(),
@@ -477,10 +485,9 @@ class _SetupState extends ConsumerState<PasscodeSetupScreen>
                   children: [
                     Column(
                       children: [
-                        Icon(
-                          Icons.lock_outline_rounded,
-                          size: 36,
-                          color: scheme.primary,
+                        const DeskIllustration(
+                          kind: DeskArt.security,
+                          size: 96,
                         ),
                         const SizedBox(height: 14),
                         Text(

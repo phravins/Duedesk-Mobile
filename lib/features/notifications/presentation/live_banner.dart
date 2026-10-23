@@ -3,13 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/providers.dart';
 import '../../../app/router.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/haptics.dart';
 import '../../../core/widgets/glass.dart';
 import '../../../shared/models/models.dart';
 import '../domain/reminders.dart';
 import 'notification_style.dart';
 
-/// An iOS-style notification bar that drops in from the top when something
+/// A notification bar that drops in from the top when something
 /// new arrives: a reminder comes due, or (with a server) a teammate changes
 /// an obligation. Tap to open, swipe up to dismiss; it also hides by itself.
 class LiveNotificationBanner extends ConsumerStatefulWidget {
@@ -142,12 +143,14 @@ class _BannerState extends ConsumerState<LiveNotificationBanner> {
                                 ? '${_showing.length} new notifications'
                                 : '${style!.title}. ${first.message}',
                             excludeSemantics: true,
-                            child: FrostedPanel(
-                              borderRadius: BorderRadius.circular(22),
+                            child: SurfacePanel(
+                              borderRadius: BorderRadius.circular(
+                                AppSizes.radiusLg,
+                              ),
                               child: InkWell(
                                 key: const ValueKey('live-banner'),
                                 onTap: _open,
-                                borderRadius: BorderRadius.circular(22),
+
                                 child: Padding(
                                   padding: const EdgeInsets.fromLTRB(
                                     12,

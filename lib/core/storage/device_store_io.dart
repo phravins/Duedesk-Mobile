@@ -6,13 +6,16 @@ import 'package:path_provider/path_provider.dart';
 import '../config/environment.dart';
 import 'file_local_store.dart';
 import 'local_store.dart';
+import 'storage_cipher.dart';
 
-/// Opens the DueDesk folder in the app's documents directory. Hive must be
-/// initialised first so data from earlier versions can be moved across.
-Future<LocalStore> openDeviceStore() async {
+/// Opens the DueDesk folder in the app's documents directory, encrypted with
+/// [key]. Hive must be initialised first so data from earlier versions can be
+/// moved across.
+Future<LocalStore> openDeviceStore(List<int> key) async {
   final documents = await getApplicationDocumentsDirectory();
   final store = FileLocalStore(
     Directory('${documents.path}${Platform.pathSeparator}DueDesk'),
+    cipher: StorageCipher(key),
   );
   await store.root.create(recursive: true);
   if (AppConfig.isDemo && !await store.workspaceFile.exists()) {

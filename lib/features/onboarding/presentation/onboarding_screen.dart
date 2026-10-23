@@ -17,27 +17,27 @@ class _OnboardingState extends ConsumerState<OnboardingScreen> {
     (
       'Welcome to DueDesk.',
       'Keep every business obligation organised in one place.',
-      Icons.space_dashboard_outlined,
+      DeskArt.welcome,
     ),
     (
       'Track what matters.',
       'Renewals, filings, licences, contracts, and compliance. Every deadline has a home.',
-      Icons.task_alt_rounded,
+      DeskArt.clear,
     ),
     (
       'Stay ahead.',
       'Set reminders before deadlines become problems.',
-      Icons.notifications_active_outlined,
+      DeskArt.notifications,
     ),
     (
       'Know who owns it.',
       'Clear assignments and shared accountability keep your business moving.',
-      Icons.people_outline_rounded,
+      DeskArt.calendar,
     ),
     (
       'You’re ready.',
-      'A clear view of what is due. A little more room to focus.',
-      Icons.verified_outlined,
+      'A clear view of what is due, kept private on this device or your own server.',
+      DeskArt.security,
     ),
   ];
   Future<void> finish() async {
@@ -47,7 +47,7 @@ class _OnboardingState extends ConsumerState<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final (title, description, icon) = slides[page];
+    final (title, description, art) = slides[page];
     return DueDeskScaffold(
       child: Center(
         child: ConstrainedBox(
@@ -72,7 +72,7 @@ class _OnboardingState extends ConsumerState<OnboardingScreen> {
                           key: ValueKey(page),
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            IllustratedIcon(icon: icon, size: 112),
+                            DeskIllustration(kind: art, size: 200),
                             const SizedBox(height: 24),
                             Text(
                               title,

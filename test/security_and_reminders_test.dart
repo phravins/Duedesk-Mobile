@@ -213,6 +213,24 @@ void main() {
       expect(c.read(appLockProvider).locked, isFalse);
     });
 
+    test('locks after five minutes without a touch', () async {
+      final lock = c.read(appLockProvider.notifier);
+      var clock = DateTime(2026, 10, 7, 9);
+      lock.now = () => clock;
+      await lock.setPasscode('482913');
+      lock.activity();
+      clock = clock.add(const Duration(minutes: 4));
+      lock.checkIdle();
+      expect(c.read(appLockProvider).locked, isFalse);
+      lock.activity();
+      clock = clock.add(const Duration(minutes: 4));
+      lock.checkIdle();
+      expect(c.read(appLockProvider).locked, isFalse);
+      clock = clock.add(const Duration(minutes: 2));
+      lock.checkIdle();
+      expect(c.read(appLockProvider).locked, isTrue);
+    });
+
     test('wrong guesses back off, then sign the account out', () async {
       final lock = c.read(appLockProvider.notifier);
       var clock = DateTime(2026, 10, 7, 9);

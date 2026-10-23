@@ -1,4 +1,3 @@
-import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -11,15 +10,12 @@ import '../theme/app_theme.dart';
 import '../utils/haptics.dart';
 import 'illustrations.dart';
 
+/// The basic card: a white sheet on the ivory page with a hairline border.
+/// (The name predates the current flat design and is kept for continuity.)
 class GlassCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
   final double radius;
-
-  /// Also blur what is behind the card. Cards inside long lists leave this
-  /// off: the translucent fill over the ambient backdrop already reads as
-  /// glass, and scrolling stays smooth.
-  final bool blur;
   final VoidCallback? onTap;
   final Color? tint;
   const GlassCard({
@@ -27,53 +23,36 @@ class GlassCard extends StatelessWidget {
     required this.child,
     this.padding = const EdgeInsets.all(14),
     this.radius = AppSizes.radiusLg,
-    this.blur = false,
     this.onTap,
     this.tint,
   });
   @override
   Widget build(BuildContext context) {
-    final glass = GlassTokens.of(context);
+    final scheme = Theme.of(context).colorScheme;
     final shape = BorderRadius.circular(radius);
-    Widget surface = DecoratedBox(
-      decoration: BoxDecoration(
-        color: tint,
-        gradient: tint == null ? glass.sheen() : null,
+    return Material(
+      color: tint ?? scheme.surfaceContainerLowest,
+      shape: RoundedRectangleBorder(
         borderRadius: shape,
-        border: Border.all(color: glass.border),
+        side: BorderSide(color: scheme.outlineVariant),
       ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: shape,
-          child: Padding(padding: padding, child: child),
-        ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(padding: padding, child: child),
       ),
     );
-    if (blur) {
-      surface = ClipRRect(
-        borderRadius: shape,
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: glass.blur, sigmaY: glass.blur),
-          child: surface,
-        ),
-      );
-    }
-    // No drop shadow: it would show through the translucent fill. The bright
-    // hairline edge separates the card from the backdrop instead.
-    return surface;
   }
 }
 
-/// Frosted chrome: blurs whatever scrolls behind it. Used for the tab bar,
-/// the navigation rail, banners and sheets.
-class FrostedPanel extends StatelessWidget {
+/// An opaque raised surface for things that sit above the page: the
+/// notification bar, sheets and the navigation rail.
+class SurfacePanel extends StatelessWidget {
   final Widget child;
   final BorderRadius borderRadius;
   final Color? color;
   final bool shadow;
-  const FrostedPanel({
+  const SurfacePanel({
     super.key,
     required this.child,
     this.borderRadius = BorderRadius.zero,
@@ -82,77 +61,29 @@ class FrostedPanel extends StatelessWidget {
   });
   @override
   Widget build(BuildContext context) {
-    final glass = GlassTokens.of(context);
-    return DecoratedBox(
-      decoration: BoxDecoration(
+    final scheme = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Material(
+      color: color ?? scheme.surfaceContainerLowest,
+      shape: RoundedRectangleBorder(
         borderRadius: borderRadius,
-        boxShadow: shadow ? glass.shadows : null,
+        side: BorderSide(color: scheme.outlineVariant),
       ),
-      child: ClipRRect(
-        borderRadius: borderRadius,
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: glass.blur, sigmaY: glass.blur),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: color ?? glass.chrome,
-              borderRadius: borderRadius,
-              border: Border.all(color: glass.border),
-            ),
-            // Ink from list tiles and buttons paints on the glass itself.
-            child: Material(type: MaterialType.transparency, child: child),
-          ),
-        ),
-      ),
+      shadowColor: Colors.black.withValues(alpha: dark ? .5 : .14),
+      elevation: shadow ? 6 : 0,
+      clipBehavior: Clip.antiAlias,
+      child: child,
     );
   }
 }
 
-/// A soft, static colour field behind every page so translucent surfaces
-/// have something to frost. Painted once and cached by a repaint boundary.
+/// The ivory (or warm charcoal) page.
 class DueDeskBackground extends StatelessWidget {
   final Widget child;
   const DueDeskBackground({super.key, required this.child});
   @override
-  Widget build(BuildContext context) => Stack(
-    fit: StackFit.passthrough,
-    children: [
-      Positioned.fill(
-        child: RepaintBoundary(
-          child: CustomPaint(painter: _AmbientPainter(GlassTokens.of(context))),
-        ),
-      ),
-      child,
-    ],
-  );
-}
-
-class _AmbientPainter extends CustomPainter {
-  final GlassTokens glass;
-  const _AmbientPainter(this.glass);
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.drawRect(Offset.zero & size, Paint()..color = glass.base);
-    final span = size.shortestSide;
-    final spots = [
-      (Offset(size.width * .05, size.height * .02), span * .95),
-      (Offset(size.width * 1.0, size.height * .32), span * .85),
-      (Offset(size.width * .2, size.height * .95), span * .9),
-    ];
-    for (final (i, (center, radius)) in spots.indexed) {
-      final color = glass.glows[i % glass.glows.length];
-      canvas.drawCircle(
-        center,
-        radius,
-        Paint()
-          ..shader = RadialGradient(
-            colors: [color, color.withValues(alpha: 0)],
-          ).createShader(Rect.fromCircle(center: center, radius: radius)),
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(_AmbientPainter old) => old.glass != glass;
+  Widget build(BuildContext context) =>
+      ColoredBox(color: Theme.of(context).colorScheme.surface, child: child);
 }
 
 class DueDeskScaffold extends StatelessWidget {
@@ -172,28 +103,28 @@ class DueDeskScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) => DueDeskBackground(
     child: Scaffold(
-      backgroundColor: Colors.transparent,
       appBar: title == null
           ? null
           : AppBar(
               title: Text(title!),
               automaticallyImplyLeading: back,
-              flexibleSpace: FrostedPanel(
-                shadow: false,
-                color: GlassTokens.of(context).fill,
-                child: const SizedBox.expand(),
-              ),
               leading: back
                   ? IconButton(
                       tooltip: 'Back',
-                      icon: const Icon(Icons.arrow_back_ios_new_rounded),
-                      iconSize: AppSizes.iconMd,
+                      icon: const Icon(Icons.arrow_back_rounded),
                       onPressed: () => context.canPop()
                           ? context.pop()
                           : context.go('/home'),
                     )
                   : null,
               actions: actions,
+              bottom: PreferredSize(
+                preferredSize: const Size.fromHeight(1),
+                child: Divider(
+                  height: 1,
+                  color: Theme.of(context).colorScheme.outlineVariant,
+                ),
+              ),
             ),
       body: SafeArea(
         top: title == null,
@@ -243,23 +174,20 @@ class GlassBottomNavigation extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final selected = entries.indexWhere((e) => location.startsWith(e.$1));
-    final bottomInset = MediaQuery.paddingOf(context).bottom;
-    // A floating, frosted tab bar in the iOS style; pages scroll beneath it.
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        12,
-        0,
-        12,
-        bottomInset > 0 ? bottomInset : 12,
+    // A plain bar resting on the bottom edge, separated by a hairline.
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        border: Border(top: BorderSide(color: scheme.outlineVariant)),
       ),
-      child: Center(
-        heightFactor: 1,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 560),
-          child: FrostedPanel(
-            borderRadius: BorderRadius.circular(28),
+      child: SafeArea(
+        top: false,
+        child: Center(
+          heightFactor: 1,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 640),
             child: Padding(
-              padding: const EdgeInsets.all(6),
+              padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
               child: Row(
                 children: [
                   for (final (i, (path, label, icon, activeIcon))
@@ -269,33 +197,36 @@ class GlassBottomNavigation extends StatelessWidget {
                         selected: i == selected,
                         button: true,
                         child: InkWell(
-                          borderRadius: BorderRadius.circular(22),
+                          borderRadius: BorderRadius.circular(
+                            AppSizes.radiusMd,
+                          ),
                           onTap: () {
                             if (i != selected) DueHaptics.selection();
                             context.go(path);
                           },
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 220),
-                            curve: Curves.easeOutCubic,
-                            padding: const EdgeInsets.symmetric(vertical: 6),
-                            decoration: BoxDecoration(
-                              color: i == selected
-                                  ? scheme.primary.withValues(alpha: .13)
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(22),
-                            ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                AnimatedScale(
-                                  scale: i == selected ? 1.08 : 1,
-                                  duration: const Duration(milliseconds: 220),
-                                  curve: Curves.easeOutBack,
+                                AnimatedContainer(
+                                  duration: const Duration(milliseconds: 180),
+                                  curve: Curves.easeOutCubic,
+                                  width: 48,
+                                  height: 28,
+                                  decoration: BoxDecoration(
+                                    color: i == selected
+                                        ? scheme.surfaceContainerHigh
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(
+                                      AppSizes.radiusMd,
+                                    ),
+                                  ),
                                   child: Icon(
                                     i == selected ? activeIcon : icon,
                                     size: AppSizes.iconMd + 2,
                                     color: i == selected
-                                        ? scheme.primary
+                                        ? scheme.onSurface
                                         : scheme.onSurfaceVariant,
                                   ),
                                 ),
@@ -305,12 +236,12 @@ class GlassBottomNavigation extends StatelessWidget {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
-                                    fontSize: 11,
+                                    fontSize: 11.5,
                                     fontWeight: i == selected
                                         ? FontWeight.w600
                                         : FontWeight.w500,
                                     color: i == selected
-                                        ? scheme.primary
+                                        ? scheme.onSurface
                                         : scheme.onSurfaceVariant,
                                   ),
                                 ),
@@ -346,10 +277,6 @@ class AppShell extends ConsumerWidget {
     final scheme = Theme.of(context).colorScheme;
     return DueDeskBackground(
       child: Scaffold(
-        backgroundColor: Colors.transparent,
-        // Content runs under the floating tab bar; scroll views add the
-        // bar's height to their bottom padding.
-        extendBody: true,
         body: SafeArea(
           bottom: false,
           child: Column(
@@ -360,18 +287,16 @@ class AppShell extends ConsumerWidget {
                 child: offline
                     ? Container(
                         width: double.infinity,
-                        margin: const EdgeInsets.fromLTRB(12, 6, 12, 0),
                         padding: const EdgeInsets.symmetric(
                           horizontal: 12,
                           vertical: 9,
                         ),
                         decoration: BoxDecoration(
-                          color: AppColors.warning.withValues(alpha: .16),
-                          borderRadius: BorderRadius.circular(
-                            AppSizes.radiusMd,
-                          ),
-                          border: Border.all(
-                            color: AppColors.warning.withValues(alpha: .35),
+                          color: AppColors.warning.withValues(alpha: .14),
+                          border: Border(
+                            bottom: BorderSide(
+                              color: AppColors.warning.withValues(alpha: .35),
+                            ),
                           ),
                         ),
                         child: Row(
@@ -405,67 +330,59 @@ class AppShell extends ConsumerWidget {
                               AppSizes.extendedRailBreakpoint;
                           return Row(
                             children: [
-                              Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                  12,
-                                  12,
-                                  0,
-                                  12,
+                              DecoratedBox(
+                                decoration: BoxDecoration(
+                                  color: scheme.surfaceContainerLow,
+                                  border: Border(
+                                    right: BorderSide(
+                                      color: scheme.outlineVariant,
+                                    ),
+                                  ),
                                 ),
-                                child: FrostedPanel(
-                                  borderRadius: BorderRadius.circular(
-                                    AppSizes.radiusXl,
+                                child: NavigationRail(
+                                  extended: extended,
+                                  minExtendedWidth: 220,
+                                  groupAlignment: -1,
+                                  leading: Padding(
+                                    padding: const EdgeInsets.fromLTRB(
+                                      0,
+                                      12,
+                                      0,
+                                      20,
+                                    ),
+                                    child: extended
+                                        ? Row(
+                                            children: [
+                                              const BrandMark(size: 32),
+                                              const SizedBox(width: 12),
+                                              Text(
+                                                'DueDesk',
+                                                style: Theme.of(
+                                                  context,
+                                                ).textTheme.titleLarge,
+                                              ),
+                                            ],
+                                          )
+                                        : const BrandMark(size: 32),
                                   ),
-                                  child: NavigationRail(
-                                    extended: extended,
-                                    minExtendedWidth: 220,
-                                    groupAlignment: -1,
-                                    indicatorColor: scheme.primary.withValues(
-                                      alpha: .14,
-                                    ),
-                                    selectedIconTheme: IconThemeData(
-                                      color: scheme.primary,
-                                    ),
-                                    leading: Padding(
-                                      padding: const EdgeInsets.fromLTRB(
-                                        0,
-                                        12,
-                                        0,
-                                        20,
+                                  labelType: extended
+                                      ? NavigationRailLabelType.none
+                                      : NavigationRailLabelType.all,
+                                  selectedIndex: GlassBottomNavigation.indexOf(
+                                    location,
+                                  ),
+                                  onDestinationSelected: (i) => context.go(
+                                    GlassBottomNavigation.entries[i].$1,
+                                  ),
+                                  destinations: [
+                                    for (final e
+                                        in GlassBottomNavigation.entries)
+                                      NavigationRailDestination(
+                                        icon: Icon(e.$3),
+                                        selectedIcon: Icon(e.$4),
+                                        label: Text(e.$2),
                                       ),
-                                      child: extended
-                                          ? Row(
-                                              children: [
-                                                const BrandMark(size: 32),
-                                                const SizedBox(width: 12),
-                                                Text(
-                                                  'DueDesk',
-                                                  style: Theme.of(
-                                                    context,
-                                                  ).textTheme.titleLarge,
-                                                ),
-                                              ],
-                                            )
-                                          : const BrandMark(size: 32),
-                                    ),
-                                    labelType: extended
-                                        ? NavigationRailLabelType.none
-                                        : NavigationRailLabelType.all,
-                                    selectedIndex:
-                                        GlassBottomNavigation.indexOf(location),
-                                    onDestinationSelected: (i) => context.go(
-                                      GlassBottomNavigation.entries[i].$1,
-                                    ),
-                                    destinations: [
-                                      for (final e
-                                          in GlassBottomNavigation.entries)
-                                        NavigationRailDestination(
-                                          icon: Icon(e.$3),
-                                          selectedIcon: Icon(e.$4),
-                                          label: Text(e.$2),
-                                        ),
-                                    ],
-                                  ),
+                                  ],
                                 ),
                               ),
                               Expanded(child: child),
@@ -866,6 +783,9 @@ class EmptyState extends StatelessWidget {
   final IconData icon;
   final String? action;
   final VoidCallback? onAction;
+
+  /// The illustration; chosen from [icon] and [message] when omitted.
+  final DeskArt? art;
   const EmptyState({
     super.key,
     this.title = "You're all clear.",
@@ -873,25 +793,26 @@ class EmptyState extends StatelessWidget {
     this.icon = Icons.check_circle_outline_rounded,
     this.action,
     this.onAction,
+    this.art,
   });
+  DeskArt get _art {
+    if (art != null) return art!;
+    final text = message.toLowerCase();
+    if (icon == Icons.cloud_off_outlined) return DeskArt.connection;
+    if (icon == Icons.notifications_none) return DeskArt.notifications;
+    if (text.contains('document')) return DeskArt.documents;
+    if (text.contains('search')) return DeskArt.search;
+    return DeskArt.clear;
+  }
+
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+    padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
     child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        DeskIllustration(
-          kind: icon == Icons.cloud_off_outlined
-              ? DeskArt.connection
-              : message.toLowerCase().contains('document')
-              ? DeskArt.documents
-              : message.toLowerCase().contains('search')
-              ? DeskArt.search
-              : DeskArt.clear,
-          size: 88,
-          monochrome: true,
-        ),
-        const SizedBox(height: 16),
+        DeskIllustration(kind: _art, size: 132),
+        const SizedBox(height: 14),
         Text(
           title,
           style: Theme.of(context).textTheme.titleLarge,
@@ -1020,61 +941,25 @@ Future<T?> glassSheet<T>(BuildContext context, Widget child) =>
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      backgroundColor: Colors.transparent,
-      elevation: 0,
-      showDragHandle: false,
-      barrierColor: Colors.black.withValues(alpha: .28),
-      builder: (context) {
-        final scheme = Theme.of(context).colorScheme;
-        final glass = GlassTokens.of(context);
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.viewInsetsOf(context).bottom,
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(context).bottom,
+        ),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(context).height * .9,
           ),
-          child: FrostedPanel(
-            borderRadius: const BorderRadius.vertical(
-              top: Radius.circular(AppSizes.radiusXl + 8),
+          child: SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(
+              20,
+              0,
+              20,
+              24 + MediaQuery.paddingOf(context).bottom,
             ),
-            color: Color.alphaBlend(
-              glass.chrome,
-              scheme.surface.withValues(alpha: .55),
-            ),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.sizeOf(context).height * .9,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 36,
-                      height: 5,
-                      margin: const EdgeInsets.symmetric(vertical: 10),
-                      decoration: BoxDecoration(
-                        color: scheme.onSurfaceVariant.withValues(alpha: .35),
-                        borderRadius: BorderRadius.circular(3),
-                      ),
-                    ),
-                  ),
-                  Flexible(
-                    child: SingleChildScrollView(
-                      padding: EdgeInsets.fromLTRB(
-                        20,
-                        4,
-                        20,
-                        24 + MediaQuery.paddingOf(context).bottom,
-                      ),
-                      child: child,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            child: child,
           ),
-        );
-      },
+        ),
+      ),
     );
 void feedback(BuildContext context, String message) {
   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));

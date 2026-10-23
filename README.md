@@ -66,38 +66,43 @@ Demo invitations and password-reset requests do **not** send email. The notifica
 - Month calendar with date markers, selected-day obligations, and grouped agenda.
 - Evidence selection and upload with mandatory association, size/type validation, progress, PDF/image/text preview, download, replacement, and permission-aware removal. Word documents download for opening in another app. Demo bytes persist locally.
 - Live notification bar, reminder engine, notification centre with filters and swipe-to-read, unread state, mark-all-read, and navigation to the relevant obligation.
-- App lock with passcode and Face ID / Touch ID, auto-lock, app-switcher privacy shield and sign-in throttling.
+- App lock with passcode and Face ID / Touch ID, auto-lock, encrypted device storage, app-switcher privacy cover, Android screenshot blocking and sign-in throttling.
 - Organisation switching, scoped roles, company settings, logo, team invitations/access changes, category creation/edit/deactivation, profile and avatar, activity, security information, and notification preferences.
-- System/light/dark appearance with persistence, responsive tablet grids, glass surfaces, floating navigation, accessible labels, loading skeletons, empty/error states, refresh, and offline banners.
+- System/light/dark appearance with persistence, responsive tablet grids, flat paper-like surfaces, accessible labels, loading skeletons, empty/error states, refresh, and offline banners.
 
-## Glass interface (iOS)
+## Design
 
-- **Frosted glass throughout.** Pages sit on a soft ambient colour field; cards are translucent with a bright hairline edge, and navigation chrome, sheets and banners blur what scrolls behind them (`BackdropFilter`). Tokens live in `GlassTokens` (`lib/core/theme/app_theme.dart`) for light and dark.
-- **Floating tab bar.** An iOS-style frosted pill with haptic selection; content scrolls beneath it. Tablets get a frosted navigation rail.
-- **Glass sheets and app bars**, an animated offline banner, a time-of-day greeting and iOS back chevrons.
-- Long lists use translucent (not blurred) cards so scrolling stays smooth; blur is reserved for chrome.
+A calm, paper-like interface in the spirit of the Claude app, identical on iOS and Android:
+
+- **Warm palette.** Ivory pages (warm charcoal in dark mode), white cards, a single clay accent (`#C6613F`) and ink-coloured text. Tokens live in `AppColors`/`AppSizes` (`lib/core/theme/app_theme.dart`).
+- **Flat surfaces with crisp edges.** Hairline borders instead of shadows or blur; corners stay modest (6–10 px), with no pill shapes or glass effects.
+- **Serif headings** (Noto Serif) over Inter body text.
+- **Hand-drawn illustrations** in ink, sand, clay and sage (`assets/illustrations/`) for the welcome screen, onboarding, empty states, the lock screen, the privacy cover and Security.
+- A plain bottom bar on phones and a side rail on tablets.
 
 ## Live notifications
 
-- **Notification bar.** New reminders drop in from the top as a frosted banner. Tap to open the obligation (or the inbox when several arrive), swipe up to dismiss; it hides after five seconds. Toggle it under *Notification settings → Live notification bar*.
+- **Notification bar.** New reminders drop in from the top as a banner. Tap to open the obligation (or the inbox when several arrive), swipe up to dismiss; it hides after five seconds. Toggle it under *Notification settings → Live notification bar*.
 - **Reminder engine.** With device storage, `remindersDue` (`lib/features/notifications/domain/reminders.dart`) raises a reminder as each obligation crosses a threshold in its reminder schedule (for example 7, 3, 1 and 0 days before) and when it becomes overdue. Each reminder is raised once, survives restarts and respects the *Overdue alerts* setting. Checks run when the workspace opens, every minute, on resume and after unlocking.
 - **Server mode** refreshes the workspace each minute while online; the server schedules reminders, and teammates' changes surface in the banner. Your own actions are not announced back to you.
 - **Notification centre** with All/Unread filters, Today/Yesterday/Earlier groups, type icons, relative times and swipe-left to mark read.
 
 ## Security
 
-- **App lock.** Optional six-digit passcode, stored only as a salted PBKDF2-SHA256 verifier in the Keychain. Trivial codes (`111111`, `123456`) are refused. A cold start always asks; after that, choose *Immediately*, 1, 5 or 15 minutes in the background.
-- **Face ID / Touch ID** unlock via `local_auth`, confirmed once before it is enabled; the passcode remains the fallback.
+- **Encryption at rest.** With device storage, the workspace file and every attachment are encrypted with AES-256-GCM (`lib/core/storage/storage_cipher.dart`). The key is random per installation and kept in the Keychain / Android Keystore-backed secure storage, never beside the data. Files from earlier versions are read once and encrypted on their next save. The offline copy of server data is an encrypted Hive box; the old unencrypted cache is deleted. (On the web, storage is unchanged: a browser would have to keep the key beside the data.)
+- **App lock.** Optional six-digit passcode, stored only as a salted PBKDF2-SHA256 verifier in secure storage. Trivial codes (`111111`, `123456`) are refused. A cold start always asks; after leaving the app choose *Immediately*, 1, 5 or 15 minutes (default 1). It also locks after 5 minutes without a touch.
+- **Face ID / Touch ID / fingerprint** unlock via `local_auth`, confirmed once before it is enabled; the passcode remains the fallback.
 - **Brute-force protection.** After five wrong passcodes, attempts back off exponentially (30 s, 1 min, 2 min…); the tenth signs the account out and forgets the passcode. Sign-in is throttled the same way per email address on this device.
-- **App switcher privacy.** Content is frosted over whenever DueDesk is inactive, so snapshots don't show obligations or evidence.
-- **Keychain hardening.** Tokens and the passcode use `first_unlock_this_device`, so they are never restored onto another device from a backup. Signing out also removes the passcode.
+- **Privacy cover.** An opaque cover hides content whenever DueDesk is inactive, so app-switcher snapshots never show obligations or evidence.
+- **Block screenshots (Android).** Optional `FLAG_SECURE` also blocks screen recording and recent-apps previews. iOS does not allow apps to block screenshots.
+- **Keychain hardening.** Secrets use `first_unlock_this_device`, so they are never restored onto another device from a backup. Signing out, or a fresh password sign-in, removes the passcode.
 - Constant-time verifier comparison and a password strength meter on sign-up.
 
-Platform setup is included: `NSFaceIDUsageDescription` (iOS), and `FlutterFragmentActivity` plus `USE_BIOMETRIC` (Android). On Android 8 and earlier, `local_auth` also recommends an AppCompat `LaunchTheme`; switch `android/app/src/main/res/values/styles.xml` if you target those versions.
+Platform setup is included: `NSFaceIDUsageDescription` (iOS); `FlutterFragmentActivity`, `USE_BIOMETRIC` and the `app.duedesk/security` channel in `MainActivity.kt` (Android). On Android 8 and earlier, `local_auth` also recommends an AppCompat `LaunchTheme`; switch `android/app/src/main/res/values/styles.xml` if you target those versions.
 
 ## Interface refresh
 
-- More opaque glass surfaces (94% white in light mode; 94% slate in dark mode), 10–14 px corners, compact spacing and stronger text contrast.
+- Flat white cards on warm ivory, 6–10 px corners, compact spacing and strong text contrast.
 - A denser dashboard with actionable counts, illustrated status icons and deadlines closer to the top.
 - Responsive phone navigation and a side navigation rail from 900 px; list cards adapt to larger text.
 - Coloured vector illustrations and monochrome empty states, bundled locally without network dependencies.
@@ -115,10 +120,10 @@ lib/
     config/                    Environment selection and HTTPS validation
     errors/                    Domain-friendly failures
     security/                  App lock, biometrics, passcode hashing, sign-in throttle
-    storage/                   Hive and in-memory persistence adapters
-    theme/                     Material 3 based DueDesk visual tokens
+    storage/                   Encrypted file, Hive and in-memory persistence adapters
+    theme/                     Warm, flat DueDesk visual tokens
     utils/                     Civil dates, recurrence, filtering, permissions
-    widgets/                   Glass surfaces, forms, shell, loading/error states
+    widgets/                   Cards, forms, shell, illustrations, loading/error states
   features/
     auth/                      Demo and API authentication repositories
     security/                  Lock screen and passcode setup
