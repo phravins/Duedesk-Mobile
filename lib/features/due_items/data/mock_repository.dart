@@ -6,6 +6,7 @@ import '../../../core/errors/failures.dart';
 import '../../../core/utils/due_dates.dart';
 import '../../../core/utils/permissions.dart';
 import '../domain/repositories.dart';
+import '../../notifications/domain/reminders.dart';
 import 'demo_seed.dart';
 
 class MockDueItemRepository implements WorkspaceRepository {
@@ -732,4 +733,35 @@ class MockDueItemRepository implements WorkspaceRepository {
           null,
         );
       });
+  @override
+  Future<int> syncReminders(
+    User actor,
+    String organisationId,
+    DateTime today, {
+    bool overdueAlerts = true,
+  }) async {
+    List<DueNotification> owed(WorkspaceData d) {
+      final a = _actor(d, actor);
+      if (a.roleIn(organisationId) == null) return const [];
+      return remindersDue(
+        d.items.where(
+          (i) => i.organisationId == organisationId && Permissions.view(a, i),
+        ),
+        d.notifications,
+        today,
+        overdueAlerts: overdueAlerts,
+      );
+    }
+
+    // Checked first so a quiet minute does not rewrite the workspace file.
+    await _tail;
+    if (owed(await _read()).isEmpty) return 0;
+    return _mutate<int>((d) async {
+      final fresh = owed(d);
+      return (
+        d.copyWith(notifications: [...fresh, ...d.notifications]),
+        fresh.length,
+      );
+    });
+  }
 }

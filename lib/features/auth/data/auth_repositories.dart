@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/errors/failures.dart';
+import '../../../core/security/app_lock.dart';
 import '../../../core/storage/local_store.dart';
 import '../../../shared/models/models.dart';
 import '../../due_items/data/demo_seed.dart';
@@ -58,7 +59,10 @@ class DemoAuthRepository implements AuthRepository {
           secretKey: SecretKey(utf8.encode(password)),
           nonce: base64Decode(record['salt']),
         );
-        if (base64Encode(await key.extractBytes()) == record['verifier']) {
+        if (constantTimeEquals(
+          await key.extractBytes(),
+          base64Decode(record['verifier']),
+        )) {
           id = record['id'];
         }
       }

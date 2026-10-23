@@ -1,3 +1,4 @@
+import 'dart:ui' show lerpDouble;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
@@ -35,7 +36,7 @@ abstract final class AppIconButtonStyles {
   );
   static ButtonStyle outlined(ColorScheme scheme) => IconButton.styleFrom(
     minimumSize: const Size(44, 44),
-    backgroundColor: scheme.surfaceContainerLowest,
+    backgroundColor: scheme.surfaceContainerLowest.withValues(alpha: .7),
     foregroundColor: scheme.onSurface,
     side: BorderSide(color: scheme.outlineVariant),
     shape: RoundedRectangleBorder(
@@ -44,7 +45,116 @@ abstract final class AppIconButtonStyles {
   );
 }
 
-/// Calm, flat, warm-neutral surfaces with a single accent colour.
+/// Frosted-glass surface tokens, in the spirit of iOS materials.
+///
+/// Cards are translucent over an ambient backdrop; navigation chrome, sheets
+/// and banners also blur what scrolls behind them.
+@immutable
+class GlassTokens extends ThemeExtension<GlassTokens> {
+  /// Card and panel fill.
+  final Color fill;
+
+  /// Thicker fill for chrome that floats above content (tab bar, banners).
+  final Color chrome;
+
+  /// Hairline edge that catches the light.
+  final Color border;
+
+  /// Subtle top-left sheen laid over [fill].
+  final Color highlight;
+  final Color shadow;
+
+  /// Page backdrop: a base wash and the soft colour glows behind the glass.
+  final Color base;
+  final List<Color> glows;
+  final double blur;
+  const GlassTokens({
+    required this.fill,
+    required this.chrome,
+    required this.border,
+    required this.highlight,
+    required this.shadow,
+    required this.base,
+    required this.glows,
+    this.blur = 24,
+  });
+
+  static const light = GlassTokens(
+    fill: Color(0xA8FFFFFF),
+    chrome: Color(0xC7FFFFFF),
+    border: Color(0xB3FFFFFF),
+    highlight: Color(0x66FFFFFF),
+    shadow: Color(0x141B1F3B),
+    base: Color(0xFFF1F2F8),
+    glows: [Color(0x4D7C74FF), Color(0x4040C4FF), Color(0x33FF9EC4)],
+  );
+  static const dark = GlassTokens(
+    fill: Color(0x1AFFFFFF),
+    chrome: Color(0xB8202230),
+    border: Color(0x24FFFFFF),
+    highlight: Color(0x0FFFFFFF),
+    shadow: Color(0x52000000),
+    base: Color(0xFF0D0E15),
+    glows: [Color(0x596C63FF), Color(0x3329B6F6), Color(0x2EC86BFA)],
+  );
+
+  static GlassTokens of(BuildContext context) =>
+      Theme.of(context).extension<GlassTokens>() ??
+      (Theme.of(context).brightness == Brightness.dark ? dark : light);
+
+  List<BoxShadow> get shadows => [
+    BoxShadow(color: shadow, blurRadius: 28, offset: const Offset(0, 10)),
+  ];
+
+  /// The sheen fades out across the card, so text stays on an even fill.
+  Gradient sheen() => LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color.alphaBlend(highlight, fill), fill],
+    stops: const [0, .6],
+  );
+
+  @override
+  GlassTokens copyWith({
+    Color? fill,
+    Color? chrome,
+    Color? border,
+    Color? highlight,
+    Color? shadow,
+    Color? base,
+    List<Color>? glows,
+    double? blur,
+  }) => GlassTokens(
+    fill: fill ?? this.fill,
+    chrome: chrome ?? this.chrome,
+    border: border ?? this.border,
+    highlight: highlight ?? this.highlight,
+    shadow: shadow ?? this.shadow,
+    base: base ?? this.base,
+    glows: glows ?? this.glows,
+    blur: blur ?? this.blur,
+  );
+
+  @override
+  GlassTokens lerp(GlassTokens? other, double t) {
+    if (other == null) return this;
+    return GlassTokens(
+      fill: Color.lerp(fill, other.fill, t)!,
+      chrome: Color.lerp(chrome, other.chrome, t)!,
+      border: Color.lerp(border, other.border, t)!,
+      highlight: Color.lerp(highlight, other.highlight, t)!,
+      shadow: Color.lerp(shadow, other.shadow, t)!,
+      base: Color.lerp(base, other.base, t)!,
+      glows: [
+        for (var i = 0; i < glows.length; i++)
+          Color.lerp(glows[i], other.glows[i % other.glows.length], t)!,
+      ],
+      blur: lerpDouble(blur, other.blur, t)!,
+    );
+  }
+}
+
+/// Translucent glass over an ambient backdrop, with a single accent colour.
 abstract final class AppTheme {
   static const serif = 'NotoSerif';
 
@@ -57,35 +167,37 @@ abstract final class AppTheme {
         ).copyWith(
           primary: dark ? const Color(0xFFA9A3FF) : const Color(0xFF5C52DE),
           // Page background.
-          surface: dark ? const Color(0xFF1C1B1A) : const Color(0xFFFAF9F5),
+          surface: dark ? const Color(0xFF12131A) : const Color(0xFFF4F5FA),
           // Cards, inputs, sheets.
           surfaceContainerLowest: dark
-              ? const Color(0xFF262624)
+              ? const Color(0xFF1C1E28)
               : const Color(0xFFFFFFFF),
           surfaceContainerLow: dark
-              ? const Color(0xFF2A2927)
-              : const Color(0xFFF5F4EE),
+              ? const Color(0xFF20222D)
+              : const Color(0xFFF6F6FB),
           surfaceContainer: dark
-              ? const Color(0xFF302F2C)
-              : const Color(0xFFF0EEE6),
+              ? const Color(0xFF262834)
+              : const Color(0xFFEEEFF6),
           surfaceContainerHigh: dark
-              ? const Color(0xFF363532)
-              : const Color(0xFFEAE8DF),
+              ? const Color(0xFF2E303D)
+              : const Color(0xFFE6E7F1),
           surfaceContainerHighest: dark
-              ? const Color(0xFF3D3C38)
-              : const Color(0xFFE3E1D7),
-          onSurface: dark ? const Color(0xFFF5F4EE) : const Color(0xFF1F1E1D),
+              ? const Color(0xFF373A48)
+              : const Color(0xFFDDDFEB),
+          onSurface: dark ? const Color(0xFFF3F4FA) : const Color(0xFF181A26),
           onSurfaceVariant: dark
-              ? const Color(0xFFA6A49B)
-              : const Color(0xFF6B6963),
-          outline: dark ? const Color(0xFF5A5852) : const Color(0xFFB9B6AB),
+              ? const Color(0xFFA3A6B8)
+              : const Color(0xFF5D6074),
+          outline: dark ? const Color(0xFF555869) : const Color(0xFFB3B6C6),
           // Hairline borders and dividers.
           outlineVariant: dark
-              ? const Color(0xFF353431)
-              : const Color(0xFFE6E3D9),
+              ? const Color(0xFF2C2E3B)
+              : const Color(0xFFE1E3EE),
         );
+    final glass = dark ? GlassTokens.dark : GlassTokens.light;
     final base = ThemeData(
       useMaterial3: true,
+      extensions: [glass],
       colorScheme: scheme,
       brightness: brightness,
       fontFamily: 'Inter',
@@ -138,7 +250,7 @@ abstract final class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         isDense: true,
-        fillColor: scheme.surfaceContainerLowest,
+        fillColor: dark ? const Color(0x14FFFFFF) : const Color(0xB3FFFFFF),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 14,
           vertical: 13,
@@ -168,7 +280,7 @@ abstract final class AppTheme {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           minimumSize: const Size(44, 46),
-          backgroundColor: scheme.surfaceContainerLowest,
+          backgroundColor: glass.fill,
           foregroundColor: scheme.onSurface,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppSizes.radiusMd),
@@ -246,6 +358,7 @@ abstract final class AppTheme {
       ),
       dialogTheme: DialogThemeData(
         backgroundColor: scheme.surfaceContainerLowest,
+        surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppSizes.radiusXl),
         ),
@@ -265,6 +378,15 @@ abstract final class AppTheme {
       ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
+        backgroundColor: dark
+            ? const Color(0xFF2B2E3C)
+            : const Color(0xF0181A26),
+        contentTextStyle: const TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 13.5,
+          color: Colors.white,
+        ),
+        elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppSizes.radiusMd),
         ),
@@ -280,7 +402,7 @@ abstract final class AppTheme {
         ),
       ),
       appBarTheme: AppBarTheme(
-        backgroundColor: scheme.surface,
+        backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
         foregroundColor: scheme.onSurface,
         elevation: 0,
@@ -295,7 +417,7 @@ abstract final class AppTheme {
         ),
       ),
       chipTheme: base.chipTheme.copyWith(
-        backgroundColor: scheme.surfaceContainerLowest,
+        backgroundColor: glass.fill,
         selectedColor: scheme.onSurface,
         secondarySelectedColor: scheme.onSurface,
         checkmarkColor: scheme.surface,

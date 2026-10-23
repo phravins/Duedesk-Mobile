@@ -1,7 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../core/security/app_lock.dart';
 import '../core/theme/app_theme.dart';
+import '../features/notifications/application/live_updates.dart';
+import 'app_frame.dart';
 import 'providers.dart';
 import 'router.dart';
 
@@ -18,10 +21,20 @@ class _AppState extends ConsumerState<DueDeskApp> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _clock = Timer.periodic(
-      const Duration(minutes: 1),
-      (_) => ref.invalidate(todayProvider),
-    );
+    _clock = Timer.periodic(const Duration(minutes: 1), (_) {
+      ref.invalidate(todayProvider);
+      ref.read(liveUpdatesProvider).tick();
+    });
+    // Check for reminders as soon as a workspace opens or the organisation
+    // changes, rather than waiting for the next minute.
+    ref.listenManual(workspaceProvider, (previous, next) {
+      if (previous?.value == null && next.value != null) _tickSoon();
+    });
+    ref.listenManual(currentOrganisationProvider, (_, _) => _tickSoon());
+    if (ref.read(workspaceProvider).hasValue) _tickSoon();
+    ref.listenManual(appLockProvider.select((s) => s.locked), (was, locked) {
+      if (was == true && !locked) _tickSoon();
+    });
     _notifications = ref.read(notificationServiceProvider).dueItemLinks.listen((
       id,
     ) {
@@ -39,10 +52,27 @@ class _AppState extends ConsumerState<DueDeskApp> with WidgetsBindingObserver {
     super.dispose();
   }
 
+  void _tickSoon() => Future.microtask(() {
+    if (mounted) ref.read(liveUpdatesProvider).tick();
+  });
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      ref.invalidate(todayProvider);
+    final lock = ref.read(appLockProvider.notifier);
+    switch (state) {
+      case AppLifecycleState.resumed:
+        ref.read(appObscuredProvider.notifier).set(false);
+        lock.foregrounded();
+        ref.invalidate(todayProvider);
+        _tickSoon();
+      case AppLifecycleState.inactive:
+        ref.read(appObscuredProvider.notifier).set(true);
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.paused:
+        ref.read(appObscuredProvider.notifier).set(true);
+        lock.backgrounded();
+      case AppLifecycleState.detached:
+        break;
     }
   }
 
@@ -54,5 +84,6 @@ class _AppState extends ConsumerState<DueDeskApp> with WidgetsBindingObserver {
     darkTheme: AppTheme.theme(Brightness.dark),
     themeMode: ref.watch(themeProvider),
     routerConfig: ref.watch(routerProvider),
+    builder: (context, child) => AppFrame(child: child ?? const SizedBox()),
   );
 }

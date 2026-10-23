@@ -75,6 +75,16 @@ abstract interface class UserRepository {
 
 abstract interface class NotificationRepository {
   Future<void> markRead(User actor, String organisationId, {String? id});
+
+  /// Raises reminders that have become due for the organisation and returns
+  /// how many were added. Servers schedule reminders themselves, so remote
+  /// repositories return 0 and rely on refreshes to deliver them.
+  Future<int> syncReminders(
+    User actor,
+    String organisationId,
+    DateTime today, {
+    bool overdueAlerts = true,
+  });
 }
 
 abstract interface class WorkspaceRepository
