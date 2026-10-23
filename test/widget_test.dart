@@ -9,9 +9,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:duedesk/app/app.dart';
+import 'package:duedesk/app/app_frame.dart';
 import 'package:duedesk/app/providers.dart';
 import 'package:duedesk/app/router.dart';
+import 'package:duedesk/core/security/app_lock.dart';
 import 'package:duedesk/core/storage/local_store.dart';
+import 'package:duedesk/features/notifications/application/live_updates.dart';
+import 'package:duedesk/features/security/presentation/lock_screen.dart';
 import 'package:duedesk/core/storage/storage_settings.dart';
 import 'package:duedesk/features/auth/data/auth_repositories.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -21,12 +25,28 @@ import 'package:duedesk/features/due_items/data/demo_seed.dart';
 import 'package:duedesk/shared/models/models.dart';
 
 final captureKey = GlobalKey();
+
+class FakeBiometrics extends BiometricAuth {
+  bool enrolled = true, accept = true;
+  int prompts = 0;
+  @override
+  Future<bool> available() async => enrolled;
+  @override
+  Future<bool> authenticate(String reason) async {
+    prompts++;
+    return accept;
+  }
+}
+
 Future<ProviderContainer> boot(
   WidgetTester tester, {
   bool signedIn = true,
   Size size = const Size(390, 844),
   double textScale = 1,
+  bool live = false,
+  Map<String, String> secure = const {},
 }) async {
+  FlutterSecureStorage.setMockInitialValues({...secure});
   tz.initializeTimeZones();
   TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
       .setMockMethodCallHandler(SystemChannels.platform, (_) async => null);
@@ -59,6 +79,12 @@ Future<ProviderContainer> boot(
       connectivityProvider.overrideWith(
         (ref) => Stream.value([ConnectivityResult.wifi]),
       ),
+      // Reminder banners are covered by their own tests below.
+      liveUpdatesEnabledProvider.overrideWithValue(live),
+      passcodeHasherProvider.overrideWithValue(
+        const PasscodeHasher(iterations: 1000),
+      ),
+      biometricAuthProvider.overrideWithValue(FakeBiometrics()),
     ],
   );
   addTearDown(container.dispose);
@@ -484,6 +510,133 @@ void main() {
       '/welcome',
     );
   });
+  testWidgets('Live notification bar announces reminders as they come due', (
+    tester,
+  ) async {
+    final c = await boot(tester, live: true);
+    final store = c.read(localStoreProvider);
+    final data = (await store.read())!;
+    final today = c.read(todayProvider);
+    final template = data.items.firstWhere(
+      (i) => i.organisationId == 'realoffice' && !i.isClosed,
+    );
+    await store.write(
+      data.copyWith(
+        items: [
+          ...data.items,
+          template.patch({
+            'id': 'fresh',
+            'title': 'Fire NOC Renewal',
+            'status': DueStatus.upcoming.name,
+            'dueDate': today.add(const Duration(days: 1)).toIso8601String(),
+          }),
+        ],
+      ),
+    );
+    await c.read(liveUpdatesProvider).tick();
+    await tester.pumpAndSettle();
+    final banner = find.byKey(const ValueKey('live-banner'));
+    expect(banner.hitTestable(), findsOneWidget);
+    expect(find.text('Fire NOC Renewal: 1 day left.'), findsWidgets);
+    await tester.tap(banner);
+    await tester.pumpAndSettle();
+    expect(
+      c
+          .read(routerProvider)
+          .routerDelegate
+          .currentConfiguration
+          .matches
+          .last
+          .matchedLocation,
+      '/due/fresh',
+    );
+    expect(
+      c
+          .read(notificationsProvider)
+          .firstWhere((n) => n.dueItemId == 'fresh')
+          .read,
+      isTrue,
+    );
+    // Quiet when nothing new arrives, and when banners are switched off.
+    await c.read(settingsProvider.notifier).toggle('banner', false);
+    await c.read(liveUpdatesProvider).tick();
+    await tester.pump(const Duration(seconds: 6));
+    expect(banner.hitTestable(), findsNothing);
+  });
+  testWidgets('Notification centre filters unread and marks items read', (
+    tester,
+  ) async {
+    final c = await boot(tester);
+    c.read(routerProvider).push('/notifications');
+    await tester.pumpAndSettle();
+    final unread = c.read(notificationsProvider).where((n) => !n.read).length;
+    expect(unread, greaterThan(0));
+    await tester.tap(find.text('Unread ($unread)'));
+    await tester.pumpAndSettle();
+    expect(find.text('Today'), findsOneWidget);
+    await tester.tap(find.text('Read all'));
+    await tester.pumpAndSettle();
+    expect(find.text('You’re all caught up.'), findsOneWidget);
+    expect(c.read(notificationsProvider).every((n) => n.read), isTrue);
+  });
+  testWidgets('App lock: set a passcode, lock, reject wrong and accept right', (
+    tester,
+  ) async {
+    final c = await boot(tester);
+    Future<void> enter(String code) async {
+      for (final d in code.split('')) {
+        await tester.tap(
+          find.descendant(
+            of: find.byType(PasscodeKeypad),
+            matching: find.text(d),
+          ),
+        );
+        await tester.pump();
+      }
+      // Passcode hashing runs real asynchronous work.
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 300)),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    c.read(routerProvider).go('/settings/security');
+    await tester.pumpAndSettle();
+    expect(find.text('Require passcode'), findsOneWidget);
+    await tester.tap(find.text('Require passcode'));
+    await tester.pumpAndSettle();
+    expect(find.text('Enter a new passcode'), findsOneWidget);
+    await enter('123456');
+    expect(
+      find.text('Choose a passcode that is harder to guess.'),
+      findsOneWidget,
+    );
+    await enter('135792');
+    expect(find.text('Confirm your passcode'), findsOneWidget);
+    await enter('135792');
+    expect(c.read(appLockProvider).enabled, isTrue);
+    expect(find.text('Lock now'), findsOneWidget);
+
+    await tester.tap(find.text('Lock now'));
+    await tester.pumpAndSettle();
+    expect(find.text('DueDesk is locked'), findsOneWidget);
+    await enter('000000');
+    expect(find.text('Wrong passcode. Try again.'), findsOneWidget);
+    await enter('135792');
+    expect(find.text('DueDesk is locked'), findsNothing);
+    expect(find.text('Security'), findsWidgets);
+  });
+  testWidgets('App switcher shows a privacy shield instead of content', (
+    tester,
+  ) async {
+    await boot(tester);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    await tester.pump();
+    expect(find.byType(PrivacyShield), findsOneWidget);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+    expect(find.byType(PrivacyShield), findsNothing);
+  });
   testWidgets('Capture key screens for visual inspection', (tester) async {
     final c = await boot(tester);
     for (final (route, mode, filename) in [
@@ -495,6 +648,9 @@ void main() {
       ('/due?filter=Pinned', ThemeMode.dark, 'empty-pins-dark'),
       ('/due/new?templates=true', ThemeMode.light, 'templates-light'),
       ('/settings/storage', ThemeMode.light, 'storage-light'),
+      ('/notifications', ThemeMode.light, 'notifications-light'),
+      ('/settings/security', ThemeMode.dark, 'security-dark'),
+      ('/settings/security/passcode', ThemeMode.light, 'passcode-light'),
     ]) {
       await c.read(themeProvider.notifier).set(mode);
       c.read(routerProvider).go(route);

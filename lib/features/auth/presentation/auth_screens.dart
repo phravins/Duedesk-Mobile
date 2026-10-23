@@ -402,6 +402,7 @@ class _AuthFormState extends ConsumerState<AuthFormScreen> {
                   return null;
                 },
               ),
+            if (register) _PasswordStrength(controller: password),
             if (login)
               Padding(
                 padding: const EdgeInsets.only(bottom: 16),
@@ -699,6 +700,72 @@ class _AuthField extends StatelessWidget {
         ],
       ),
     ),
+  );
+}
+
+/// 0–4: length, mixed case, digits and symbols each add strength.
+int passwordStrength(String value) {
+  if (value.length < 10) return value.isEmpty ? 0 : 1;
+  var score = 1;
+  if (value.length >= 14) score++;
+  if (RegExp('[a-z]').hasMatch(value) && RegExp('[A-Z]').hasMatch(value)) {
+    score++;
+  }
+  if (RegExp(r'\d').hasMatch(value)) score++;
+  if (RegExp(r'[^A-Za-z0-9]').hasMatch(value)) score++;
+  return score.clamp(1, 4);
+}
+
+class _PasswordStrength extends StatelessWidget {
+  final TextEditingController controller;
+  const _PasswordStrength({required this.controller});
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder(
+    valueListenable: controller,
+    builder: (context, value, _) {
+      final score = passwordStrength(value.text);
+      if (score == 0) return const SizedBox.shrink();
+      final scheme = Theme.of(context).colorScheme;
+      final (label, color) = switch (score) {
+        1 => ('Too weak', scheme.error),
+        2 => ('Fair', const Color(0xFFD97706)),
+        3 => ('Good', const Color(0xFF2563EB)),
+        _ => ('Strong', const Color(0xFF16A34A)),
+      };
+      return Padding(
+        padding: const EdgeInsets.only(top: 0, bottom: 14),
+        child: Semantics(
+          label: 'Password strength: $label',
+          excludeSemantics: true,
+          child: Row(
+            children: [
+              for (var i = 0; i < 4; i++) ...[
+                Expanded(
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: i < score ? color : scheme.outlineVariant,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
+              ],
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
   );
 }
 

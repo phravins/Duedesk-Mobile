@@ -18,6 +18,12 @@ final dashboardProvider = Provider<DashboardSummary>(
   ),
 );
 
+String greeting(DateTime now) => now.hour < 12
+    ? 'Good morning'
+    : now.hour < 17
+    ? 'Good afternoon'
+    : 'Good evening';
+
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
   @override
@@ -147,8 +153,8 @@ class DashboardScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Hello, ${user.name.split(' ').first}',
-                      maxLines: 1,
+                      '${greeting(DateTime.now())}, ${user.name.split(' ').first}',
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.headlineMedium,
                     ),

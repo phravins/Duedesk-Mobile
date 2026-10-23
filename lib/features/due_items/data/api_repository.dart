@@ -213,4 +213,11 @@ class ApiDueItemRepository implements WorkspaceRepository {
   @override
   Future<void> markRead(User actor, String organisationId, {String? id}) =>
       _post('/organisations/$organisationId/notifications/read', {'id': id});
+  @override
+  Future<int> syncReminders(
+    User actor,
+    String organisationId,
+    DateTime today, {
+    bool overdueAlerts = true,
+  }) async => 0;
 }

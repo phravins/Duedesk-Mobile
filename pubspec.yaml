@@ -24,6 +24,7 @@ dependencies:
   shimmer: ^3.0.0
   timezone: ^0.10.1
   pdfrx: ^2.2.0
+  local_auth: ^3.0.2
 dev_dependencies:
   flutter_test:
     sdk: flutter

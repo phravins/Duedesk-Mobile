@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/providers.dart';
+import '../../../core/security/app_lock.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/permissions.dart';
 import '../../../core/widgets/glass.dart';
 import '../../../core/widgets/illustrations.dart';
+import '../../../shared/models/models.dart';
 import '../../../shared/widgets/due_widgets.dart';
 import '../../due_items/presentation/due_detail_screen.dart';
 
@@ -238,6 +240,11 @@ class NotificationSettingsScreen extends ConsumerWidget {
             child: Column(
               children: [
                 for (final (key, label, description) in [
+                  (
+                    'banner',
+                    'Live notification bar',
+                    'New reminders slide in at the top while you work',
+                  ),
                   ('push', 'Push notifications', 'Alerts on your device'),
                   ('email', 'Email reminders', 'A reminder in your inbox'),
                   (
@@ -297,6 +304,10 @@ class NotificationSettingsScreen extends ConsumerWidget {
   }
 }
 
+final biometricsAvailableProvider = FutureProvider<bool>(
+  (ref) => ref.watch(biometricAuthProvider).available(),
+);
+
 class SecurityScreen extends ConsumerStatefulWidget {
   const SecurityScreen({super.key});
   @override
@@ -306,61 +317,308 @@ class SecurityScreen extends ConsumerStatefulWidget {
 class _SecurityState extends ConsumerState<SecurityScreen> {
   bool busy = false;
   bool get device => ref.read(storageProvider).isDevice;
+
+  static String timeoutLabel(Duration d) =>
+      d == Duration.zero ? 'Immediately' : '${d.inMinutes} min';
+
+  Future<void> toggleLock(bool on) async {
+    final notifier = ref.read(appLockProvider.notifier);
+    if (on) {
+      await context.push('/settings/security/passcode');
+      return;
+    }
+    if (await confirmAction(
+          context,
+          'Turn off app lock?',
+          'Anyone with this unlocked device will be able to open your workspace.',
+          confirm: 'Turn off',
+        ) &&
+        mounted) {
+      await runAction(context, notifier.disable, success: 'App lock is off');
+    }
+  }
+
+  Future<void> toggleBiometrics(bool on) async {
+    final notifier = ref.read(appLockProvider.notifier);
+    if (!on) {
+      await notifier.setBiometrics(false);
+      return;
+    }
+    // Confirm it works before relying on it.
+    final ok = await ref
+        .read(biometricAuthProvider)
+        .authenticate('Use Face ID or Touch ID to unlock DueDesk');
+    if (!mounted) return;
+    if (ok) {
+      await notifier.setBiometrics(true);
+      if (mounted) feedback(context, 'Face ID / Touch ID unlock is on');
+    } else {
+      feedback(context, 'Face ID / Touch ID was not confirmed.');
+    }
+  }
+
   @override
-  Widget build(BuildContext context) => DueDeskScaffold(
-    title: 'Security',
-    child: PageBody(
-      children: [
-        GlassCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(
-                Icons.verified_user_outlined,
-                size: 34,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                device ? 'Device session' : 'Protected session',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                device
-                    ? 'Your workspace and uploaded evidence are saved on this device. Passwords are stored only as salted hashes and never leave it.'
-                    : 'Authentication tokens are stored in the platform secure store. Your organisation controls access through roles.',
-              ),
-              const SizedBox(height: 20),
-              PrimaryButton(
-                label: 'Request password reset',
-                loading: busy,
-                onPressed: () async {
-                  setState(() => busy = true);
-                  await runAction(
-                    context,
-                    () => ref
-                        .read(authRepositoryProvider)
-                        .forgotPassword(ref.read(currentUserProvider).email),
-                    success: device
-                        ? 'Accounts on this device are not reset by email. Demo password: demo123'
-                        : 'If your account is eligible, reset instructions will be sent.',
-                  );
-                  if (mounted) setState(() => busy = false);
-                },
-              ),
-            ],
+  Widget build(BuildContext context) {
+    final lock = ref.watch(appLockProvider);
+    final biometrics = ref.watch(biometricsAvailableProvider).value ?? false;
+    final scheme = Theme.of(context).colorScheme;
+    final checks = [
+      (lock.enabled, 'App lock'),
+      (lock.enabled && lock.biometrics, 'Face ID / Touch ID'),
+      (lock.privacyShield, 'App switcher privacy'),
+      (true, device ? 'Salted password hashes' : 'Keychain-held session'),
+    ];
+    final score = checks.where((c) => c.$1).length;
+    return DueDeskScaffold(
+      title: 'Security',
+      child: PageBody(
+        children: [
+          GlassCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 46,
+                      height: 46,
+                      decoration: BoxDecoration(
+                        color:
+                            (score >= 3 ? AppColors.success : AppColors.warning)
+                                .withValues(alpha: .15),
+                        borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+                      ),
+                      child: Icon(
+                        score >= 3
+                            ? Icons.verified_user_rounded
+                            : Icons.shield_outlined,
+                        color: score >= 3
+                            ? AppColors.success
+                            : AppColors.warning,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            score >= 3 ? 'Well protected' : 'Add another layer',
+                            style: Theme.of(context).textTheme.titleLarge,
+                          ),
+                          Text(
+                            '$score of ${checks.length} protections on',
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              color: scheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    for (final (on, label) in checks)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: (on ? AppColors.success : scheme.outline)
+                              .withValues(alpha: .12),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              on
+                                  ? Icons.check_rounded
+                                  : Icons.radio_button_unchecked_rounded,
+                              size: 14,
+                              color: on
+                                  ? AppColors.success
+                                  : scheme.onSurfaceVariant,
+                            ),
+                            const SizedBox(width: 5),
+                            Text(label, style: const TextStyle(fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
           ),
-        ),
-        const SectionHeader(title: 'Your access'),
-        GlassCard(
-          child: Text(
-            'Role: ${ref.watch(currentUserProvider).roleIn(ref.watch(organisationProvider).id)?.name}\nOrganisation: ${ref.watch(organisationProvider).name}',
+          const SectionHeader(title: 'App lock'),
+          GlassCard(
+            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+            child: Column(
+              children: [
+                SwitchListTile(
+                  secondary: const Icon(Icons.pin_outlined),
+                  title: const Text(
+                    'Require passcode',
+                    style: TextStyle(fontSize: 14),
+                  ),
+                  subtitle: const Text(
+                    'A six-digit code whenever DueDesk opens',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                  value: lock.enabled,
+                  onChanged: lock.ready ? toggleLock : null,
+                ),
+                SwitchListTile(
+                  secondary: const Icon(Icons.face_retouching_natural_rounded),
+                  title: const Text(
+                    'Unlock with Face ID / Touch ID',
+                    style: TextStyle(fontSize: 14),
+                  ),
+                  subtitle: Text(
+                    biometrics
+                        ? 'Your passcode is still the fallback'
+                        : 'Not set up on this device',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  value: lock.enabled && lock.biometrics,
+                  onChanged: lock.enabled && biometrics
+                      ? toggleBiometrics
+                      : null,
+                ),
+                if (lock.enabled) ...[
+                  ListTile(
+                    leading: const Icon(Icons.timer_outlined),
+                    title: const Text(
+                      'Require after leaving the app',
+                      style: TextStyle(fontSize: 14),
+                    ),
+                    subtitle: Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          for (final t in AppLockController.timeouts)
+                            ChoiceChip(
+                              label: Text(timeoutLabel(t)),
+                              selected: lock.timeout == t,
+                              onSelected: (_) => ref
+                                  .read(appLockProvider.notifier)
+                                  .setTimeout(t),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.password_rounded),
+                    title: const Text(
+                      'Change passcode',
+                      style: TextStyle(fontSize: 14),
+                    ),
+                    trailing: const Icon(
+                      Icons.chevron_right_rounded,
+                      size: AppSizes.iconMd,
+                    ),
+                    onTap: () => context.push('/settings/security/passcode'),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.lock_clock_outlined),
+                    title: const Text(
+                      'Lock now',
+                      style: TextStyle(fontSize: 14),
+                    ),
+                    onTap: () => ref.read(appLockProvider.notifier).lock(),
+                  ),
+                ],
+              ],
+            ),
           ),
-        ),
-      ],
-    ),
-  );
+          const Padding(
+            padding: EdgeInsets.fromLTRB(4, 8, 4, 0),
+            child: Text(
+              'After 10 wrong passcodes you are signed out and need your password again.',
+              style: TextStyle(fontSize: 12),
+            ),
+          ),
+          const SectionHeader(title: 'Privacy'),
+          GlassCard(
+            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+            child: SwitchListTile(
+              secondary: const Icon(Icons.blur_on_rounded),
+              title: const Text(
+                'Hide content in the app switcher',
+                style: TextStyle(fontSize: 14),
+              ),
+              subtitle: const Text(
+                'Frosts the screen when you leave DueDesk',
+                style: TextStyle(fontSize: 12),
+              ),
+              value: lock.privacyShield,
+              onChanged: (v) =>
+                  ref.read(appLockProvider.notifier).setPrivacyShield(v),
+            ),
+          ),
+          const SectionHeader(title: 'Sign-in'),
+          GlassCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  device ? 'Device session' : 'Protected session',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  device
+                      ? 'Your workspace and uploaded evidence are saved on this device. Passwords are stored only as salted hashes and never leave it.'
+                      : 'Authentication tokens are kept in the device Keychain, available only on this device. Your organisation controls access through roles.',
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Repeated failed sign-ins are slowed down automatically.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                PrimaryButton(
+                  label: 'Request password reset',
+                  loading: busy,
+                  onPressed: () async {
+                    setState(() => busy = true);
+                    await runAction(
+                      context,
+                      () => ref
+                          .read(authRepositoryProvider)
+                          .forgotPassword(ref.read(currentUserProvider).email),
+                      success: device
+                          ? 'Accounts on this device are not reset by email. Demo password: demo123'
+                          : 'If your account is eligible, reset instructions will be sent.',
+                    );
+                    if (mounted) setState(() => busy = false);
+                  },
+                ),
+              ],
+            ),
+          ),
+          const SectionHeader(title: 'Your access'),
+          GlassCard(
+            child: Text(
+              'Role: ${ref.watch(currentUserProvider).roleIn(ref.watch(organisationProvider).id)?.label ?? 'None'}\nOrganisation: ${ref.watch(organisationProvider).name}',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class ActivityScreen extends ConsumerWidget {

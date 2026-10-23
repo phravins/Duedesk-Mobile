@@ -256,7 +256,12 @@ class _DueListState extends ConsumerState<DueListScreen> {
                           physics: const AlwaysScrollableScrollPhysics(),
                           keyboardDismissBehavior:
                               ScrollViewKeyboardDismissBehavior.onDrag,
-                          padding: const EdgeInsets.fromLTRB(16, 2, 16, 20),
+                          padding: EdgeInsets.fromLTRB(
+                            16,
+                            2,
+                            16,
+                            20 + MediaQuery.paddingOf(context).bottom,
+                          ),
                           itemCount: (items.length / cols).ceil(),
                           itemBuilder: (context, index) => cols == 1
                               ? DueItemCard(item: items[index])

@@ -1,11 +1,11 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/api/api_client.dart';
 import '../core/config/environment.dart';
 import '../core/errors/failures.dart';
+import '../core/security/app_lock.dart';
 import '../core/storage/local_store.dart';
 import '../core/storage/storage_settings.dart';
 import '../core/utils/due_dates.dart';
@@ -36,7 +36,7 @@ final localStoreProvider = Provider<LocalStore>(
       : ref.watch(serverCacheProvider),
 );
 final tokenStoreProvider = Provider<TokenStore>(
-  (ref) => TokenStore(const FlutterSecureStorage()),
+  (ref) => TokenStore(ref.watch(secureStorageProvider)),
 );
 final apiClientProvider = Provider<ApiClient>((ref) {
   final client = ApiClient(
@@ -123,15 +123,41 @@ final authProvider = AsyncNotifierProvider<AuthController, User?>(
 class AuthController extends AsyncNotifier<User?> {
   @override
   Future<User?> build() => ref.watch(authRepositoryProvider).restore();
+  LoginThrottle get _throttle {
+    final prefs = ref.read(preferencesProvider);
+    return LoginThrottle(prefs.getString, prefs.setString, prefs.remove);
+  }
+
   Future<void> login(String email, String password, bool remember) async {
-    final u = await ref
-        .read(authRepositoryProvider)
-        .signIn(email, password, remember: remember);
+    final throttle = _throttle;
+    final wait = throttle.wait(email);
+    if (wait != null) {
+      throw ValidationFailure(
+        'Too many attempts. For your security, try again in ${describeWait(wait)}.',
+      );
+    }
+    final User u;
+    try {
+      u = await ref
+          .read(authRepositoryProvider)
+          .signIn(email, password, remember: remember);
+    } on AuthenticationFailure {
+      await throttle.failed(email);
+      rethrow;
+    }
+    await throttle.succeeded(email);
+    await _freshSession();
     state = AsyncData(u);
   }
 
+  /// A password sign-in starts a new session, so any passcode left from an
+  /// earlier one (for example a session that was not remembered) is dropped.
+  Future<void> _freshSession() => ref.read(appLockProvider.notifier).disable();
+
   Future<void> demo() async {
-    state = AsyncData(await ref.read(authRepositoryProvider).enterDemo());
+    final u = await ref.read(authRepositoryProvider).enterDemo();
+    await _freshSession();
+    state = AsyncData(u);
   }
 
   Future<void> register(
@@ -146,6 +172,7 @@ class AuthController extends AsyncNotifier<User?> {
     ref
         .read(currentOrganisationProvider.notifier)
         .select(u.currentOrganisationId);
+    await _freshSession();
     state = AsyncData(u);
   }
 
@@ -166,6 +193,8 @@ class AuthController extends AsyncNotifier<User?> {
     } finally {
       state = const AsyncData(null);
       ref.invalidate(workspaceProvider);
+      // The app passcode belongs to this session, not to the device.
+      await ref.read(appLockProvider.notifier).disable();
     }
   }
 }
@@ -205,9 +234,14 @@ class WorkspaceController extends AsyncNotifier<WorkspaceData> {
     state = AsyncData(next);
   }
 
+  /// When this device last changed the workspace. Notifications that follow
+  /// straight after are the person's own doing and are not announced.
+  DateTime? lastLocalAction;
+
   Future<T> act<T>(
     Future<T> Function(WorkspaceRepository repository, User actor) action,
   ) async {
+    lastLocalAction = DateTime.now();
     final identity = ref.read(authProvider).value;
     if (identity == null) throw const AuthenticationFailure();
     // Read our own snapshot, not a derived provider that depends on this notifier.
@@ -321,6 +355,7 @@ class SettingsController extends Notifier<Map<String, bool>> {
     'assignment': true,
     'overdue': true,
     'completion': true,
+    'banner': true,
     'reminder30': false,
     'reminder15': false,
     'reminder7': true,
