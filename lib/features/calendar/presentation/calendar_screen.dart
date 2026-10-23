@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../app/providers.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/due_dates.dart';
 import '../../../core/widgets/glass.dart';
 import '../../../shared/models/models.dart';
@@ -178,7 +179,9 @@ class _CalendarState extends ConsumerState<CalendarScreen> {
                                                         .withValues(alpha: .1)
                                                   : Colors.transparent,
                                               borderRadius:
-                                                  BorderRadius.circular(12),
+                                                  BorderRadius.circular(
+                                                    AppSizes.radiusMd,
+                                                  ),
                                             ),
                                             child: Column(
                                               mainAxisAlignment:

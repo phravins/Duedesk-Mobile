@@ -1,8 +1,7 @@
-import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/security/app_lock.dart';
-import '../core/theme/app_theme.dart';
+import '../core/widgets/illustrations.dart';
 import '../core/widgets/glass.dart';
 import '../features/notifications/presentation/live_banner.dart';
 import '../features/security/presentation/lock_screen.dart';
@@ -25,9 +24,13 @@ class AppFrame extends ConsumerWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
-        ExcludeSemantics(
-          excluding: locked || checking,
-          child: TickerMode(enabled: !locked, child: child),
+        Listener(
+          behavior: HitTestBehavior.translucent,
+          onPointerDown: (_) => ref.read(appLockProvider.notifier).activity(),
+          child: ExcludeSemantics(
+            excluding: locked || checking,
+            child: TickerMode(enabled: !locked, child: child),
+          ),
         ),
         if (signedIn) const LiveNotificationBanner(),
         if (locked)
@@ -40,24 +43,25 @@ class AppFrame extends ConsumerWidget {
   }
 }
 
-/// Frosts the screen while DueDesk is in the app switcher, so obligations
-/// and evidence are not visible in the snapshot.
+/// Covers the screen while DueDesk is in the app switcher, so obligations
+/// and evidence never appear in the snapshot. It is fully opaque: a blur can
+/// still reveal the shape of what is underneath.
 class PrivacyShield extends StatelessWidget {
   const PrivacyShield({super.key});
   @override
-  Widget build(BuildContext context) {
-    final glass = GlassTokens.of(context);
-    return Semantics(
-      label: 'DueDesk content hidden',
-      child: ClipRect(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 36, sigmaY: 36),
-          child: ColoredBox(
-            color: glass.chrome,
-            child: const Center(child: BrandMark(size: 64)),
-          ),
+  Widget build(BuildContext context) => Semantics(
+    label: 'DueDesk content hidden',
+    child: DueDeskBackground(
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const DeskIllustration(kind: DeskArt.security, size: 150),
+            const SizedBox(height: 12),
+            Text('DueDesk', style: Theme.of(context).textTheme.headlineSmall),
+          ],
         ),
       ),
-    );
-  }
+    ),
+  );
 }

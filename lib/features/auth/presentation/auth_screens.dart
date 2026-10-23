@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/providers.dart';
 import '../../../core/config/environment.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/glass.dart';
+import '../../../core/widgets/illustrations.dart';
 import '../../settings/presentation/storage_screen.dart';
 import '../domain/auth_repository.dart';
 
@@ -75,68 +77,33 @@ class _WelcomeState extends ConsumerState<WelcomeScreen> {
                   letterSpacing: -.8,
                 ),
               ),
-              const SizedBox(height: 62),
-              GlassCard(
-                blur: true,
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.verified_user_outlined,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                        const Spacer(),
-                        const Text(
-                          'ALL UNDER CONTROL',
-                          style: TextStyle(
-                            fontSize: 10,
-                            letterSpacing: 1.1,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 26),
-                    const Text(
-                      'A little clarity.\nA lot of peace of mind.',
-                      style: TextStyle(
-                        fontSize: 25,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: -.8,
-                      ),
-                    ),
-                    const SizedBox(height: 22),
-                    for (final text in [
-                      'Deadlines, in one place',
-                      'Clear ownership, every time',
-                      'Evidence that stays with the work',
-                    ])
-                      Padding(
-                        padding: const EdgeInsets.only(top: 12),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.check_circle_outline,
-                              size: 18,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                text,
-                                style: const TextStyle(fontSize: 13),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
+              const SizedBox(height: 28),
+              const Center(
+                child: DeskIllustration(kind: DeskArt.welcome, size: 240),
               ),
-              const SizedBox(height: 38),
+              const SizedBox(height: 8),
+              for (final (icon, text) in [
+                (Icons.event_available_outlined, 'Deadlines, in one place'),
+                (Icons.person_pin_outlined, 'Clear ownership, every time'),
+                (Icons.lock_outline_rounded, 'Private, protected evidence'),
+              ])
+                Padding(
+                  padding: const EdgeInsets.only(top: 10),
+                  child: Row(
+                    children: [
+                      Icon(
+                        icon,
+                        size: 18,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(text, style: const TextStyle(fontSize: 14)),
+                      ),
+                    ],
+                  ),
+                ),
+              const SizedBox(height: 28),
               Text(
                 'Never miss\nwhat is due.',
                 style: Theme.of(
@@ -844,7 +811,7 @@ class _DemoNote extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppSizes.radiusMd),
         border: Border.all(color: scheme.outlineVariant),
       ),
       child: Row(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/haptics.dart';
 import 'package:go_router/go_router.dart';
 import 'package:file_picker/file_picker.dart';
@@ -553,7 +554,7 @@ class DateField extends StatelessWidget {
   });
   @override
   Widget build(BuildContext context) => InkWell(
-    borderRadius: BorderRadius.circular(15),
+    borderRadius: BorderRadius.circular(AppSizes.radiusLg),
     onTap: () async {
       final initial = value ?? DateTime.now();
       final selected = await showDatePicker(

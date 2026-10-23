@@ -20,6 +20,7 @@ import 'package:duedesk/core/storage/storage_settings.dart';
 import 'package:duedesk/features/auth/data/auth_repositories.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:duedesk/core/widgets/glass.dart';
+import 'package:duedesk/core/widgets/illustrations.dart';
 import 'package:duedesk/shared/widgets/due_widgets.dart';
 import 'package:duedesk/features/due_items/data/demo_seed.dart';
 import 'package:duedesk/shared/models/models.dart';
@@ -99,6 +100,20 @@ Future<ProviderContainer> boot(
   await tester.pumpAndSettle();
   return container;
 }
+
+Future<void> capture(WidgetTester tester, String filename) =>
+    tester.runAsync(() async {
+      final image =
+          await (captureKey.currentContext!.findRenderObject()
+                  as RenderRepaintBoundary)
+              .toImage(pixelRatio: 2);
+      final data = await image.toByteData(format: ui.ImageByteFormat.png);
+      await Directory('artifacts').create();
+      await File(
+        'artifacts/$filename.png',
+      ).writeAsBytes(data!.buffer.asUint8List());
+      image.dispose();
+    });
 
 Future<void> reveal(WidgetTester tester, Finder finder) async {
   for (
@@ -636,6 +651,25 @@ void main() {
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     await tester.pump();
     expect(find.byType(PrivacyShield), findsNothing);
+  });
+  testWidgets('Welcome screen is illustrated', (tester) async {
+    await boot(tester, signedIn: false);
+    expect(find.byType(DeskIllustration), findsWidgets);
+    await capture(tester, 'welcome-light');
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('Lock screen renders in dark mode', (tester) async {
+    final c = await boot(tester);
+    await tester.runAsync(
+      () => c.read(appLockProvider.notifier).setPasscode('135792'),
+    );
+    c.read(appLockProvider.notifier).lock();
+    await c.read(themeProvider.notifier).set(ThemeMode.dark);
+    await tester.pumpAndSettle();
+    expect(find.text('DueDesk is locked'), findsOneWidget);
+    expect(find.byType(DeskIllustration), findsWidgets);
+    await capture(tester, 'lock-dark');
+    expect(tester.takeException(), isNull);
   });
   testWidgets('Capture key screens for visual inspection', (tester) async {
     final c = await boot(tester);

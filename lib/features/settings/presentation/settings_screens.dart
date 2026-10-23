@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/providers.dart';
 import '../../../core/security/app_lock.dart';
+import '../../../core/security/secure_screen.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/permissions.dart';
 import '../../../core/widgets/glass.dart';
@@ -366,6 +367,7 @@ class _SecurityState extends ConsumerState<SecurityScreen> {
       (lock.enabled, 'App lock'),
       (lock.enabled && lock.biometrics, 'Face ID / Touch ID'),
       (lock.privacyShield, 'App switcher privacy'),
+      (true, device ? 'Encrypted on this device' : 'Encrypted offline copy'),
       (true, device ? 'Salted password hashes' : 'Keychain-held session'),
     ];
     final score = checks.where((c) => c.$1).length;
@@ -379,31 +381,14 @@ class _SecurityState extends ConsumerState<SecurityScreen> {
               children: [
                 Row(
                   children: [
-                    Container(
-                      width: 46,
-                      height: 46,
-                      decoration: BoxDecoration(
-                        color:
-                            (score >= 3 ? AppColors.success : AppColors.warning)
-                                .withValues(alpha: .15),
-                        borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-                      ),
-                      child: Icon(
-                        score >= 3
-                            ? Icons.verified_user_rounded
-                            : Icons.shield_outlined,
-                        color: score >= 3
-                            ? AppColors.success
-                            : AppColors.warning,
-                      ),
-                    ),
-                    const SizedBox(width: 14),
+                    const DeskIllustration(kind: DeskArt.security, size: 72),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            score >= 3 ? 'Well protected' : 'Add another layer',
+                            score >= 4 ? 'Well protected' : 'Add another layer',
                             style: Theme.of(context).textTheme.titleLarge,
                           ),
                           Text(
@@ -432,7 +417,9 @@ class _SecurityState extends ConsumerState<SecurityScreen> {
                         decoration: BoxDecoration(
                           color: (on ? AppColors.success : scheme.outline)
                               .withValues(alpha: .12),
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: BorderRadius.circular(
+                            AppSizes.radiusSm,
+                          ),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -543,26 +530,58 @@ class _SecurityState extends ConsumerState<SecurityScreen> {
           const Padding(
             padding: EdgeInsets.fromLTRB(4, 8, 4, 0),
             child: Text(
-              'After 10 wrong passcodes you are signed out and need your password again.',
+              'DueDesk also locks after 5 minutes without a touch. After 10 wrong passcodes you are signed out and need your password again.',
               style: TextStyle(fontSize: 12),
             ),
           ),
           const SectionHeader(title: 'Privacy'),
           GlassCard(
             padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-            child: SwitchListTile(
-              secondary: const Icon(Icons.blur_on_rounded),
-              title: const Text(
-                'Hide content in the app switcher',
-                style: TextStyle(fontSize: 14),
-              ),
-              subtitle: const Text(
-                'Frosts the screen when you leave DueDesk',
-                style: TextStyle(fontSize: 12),
-              ),
-              value: lock.privacyShield,
-              onChanged: (v) =>
-                  ref.read(appLockProvider.notifier).setPrivacyShield(v),
+            child: Column(
+              children: [
+                SwitchListTile(
+                  secondary: const Icon(Icons.visibility_off_outlined),
+                  title: const Text(
+                    'Hide content in the app switcher',
+                    style: TextStyle(fontSize: 14),
+                  ),
+                  subtitle: const Text(
+                    'Covers the screen when you leave DueDesk',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                  value: lock.privacyShield,
+                  onChanged: (v) =>
+                      ref.read(appLockProvider.notifier).setPrivacyShield(v),
+                ),
+                if (SecureScreen.supported)
+                  SwitchListTile(
+                    secondary: const Icon(Icons.screenshot_monitor_outlined),
+                    title: const Text(
+                      'Block screenshots',
+                      style: TextStyle(fontSize: 14),
+                    ),
+                    subtitle: const Text(
+                      'Also blocks screen recording and app previews',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    value: lock.blockCapture,
+                    onChanged: (v) =>
+                        ref.read(appLockProvider.notifier).setBlockCapture(v),
+                  ),
+                ListTile(
+                  leading: const Icon(Icons.enhanced_encryption_outlined),
+                  title: const Text(
+                    'Encrypted storage',
+                    style: TextStyle(fontSize: 14),
+                  ),
+                  subtitle: Text(
+                    device
+                        ? 'Records and evidence on this device are encrypted with AES-256. The key stays in the device’s secure keystore.'
+                        : 'The offline copy of your server data is encrypted with AES-256. The key stays in the device’s secure keystore.',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ),
+              ],
             ),
           ),
           const SectionHeader(title: 'Sign-in'),

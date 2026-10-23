@@ -1,20 +1,26 @@
-import 'dart:ui' show lerpDouble;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
+/// Warm, paper-like palette with a single clay accent.
 abstract final class AppColors {
-  static const primary = Color(0xFF6C63FF),
-      secondary = Color(0xFF40C4FF),
-      success = Color(0xFF22C55E),
-      warning = Color(0xFFF59E0B),
-      danger = Color(0xFFEF4444);
+  static const primary = Color(0xFFC6613F),
+      primaryDark = Color(0xFFD97757),
+      secondary = Color(0xFF6A9BCC),
+      success = Color(0xFF3F8F5F),
+      warning = Color(0xFFC98A2B),
+      danger = Color(0xFFB53333),
+      ink = Color(0xFF141413),
+      ivory = Color(0xFFFAF9F5),
+      clayLight = Color(0xFFF2DDD3);
 }
 
 /// Shared size tokens so icons, corners and touch targets stay consistent.
+/// Corners are deliberately modest: crisp, paper-like edges rather than
+/// pill shapes.
 abstract final class AppSizes {
   static const iconXs = 16.0, iconSm = 18.0, iconMd = 20.0, iconLg = 24.0;
-  static const radiusSm = 8.0, radiusMd = 12.0, radiusLg = 14.0;
-  static const radiusXl = 20.0;
+  static const radiusSm = 6.0, radiusMd = 8.0, radiusLg = 10.0;
+  static const radiusXl = 12.0;
 
   /// Width at which the bottom bar gives way to a navigation rail. Phones
   /// (shortest side under this) keep the bottom bar even in landscape.
@@ -36,7 +42,7 @@ abstract final class AppIconButtonStyles {
   );
   static ButtonStyle outlined(ColorScheme scheme) => IconButton.styleFrom(
     minimumSize: const Size(44, 44),
-    backgroundColor: scheme.surfaceContainerLowest.withValues(alpha: .7),
+    backgroundColor: scheme.surfaceContainerLowest,
     foregroundColor: scheme.onSurface,
     side: BorderSide(color: scheme.outlineVariant),
     shape: RoundedRectangleBorder(
@@ -45,116 +51,8 @@ abstract final class AppIconButtonStyles {
   );
 }
 
-/// Frosted-glass surface tokens, in the spirit of iOS materials.
-///
-/// Cards are translucent over an ambient backdrop; navigation chrome, sheets
-/// and banners also blur what scrolls behind them.
-@immutable
-class GlassTokens extends ThemeExtension<GlassTokens> {
-  /// Card and panel fill.
-  final Color fill;
-
-  /// Thicker fill for chrome that floats above content (tab bar, banners).
-  final Color chrome;
-
-  /// Hairline edge that catches the light.
-  final Color border;
-
-  /// Subtle top-left sheen laid over [fill].
-  final Color highlight;
-  final Color shadow;
-
-  /// Page backdrop: a base wash and the soft colour glows behind the glass.
-  final Color base;
-  final List<Color> glows;
-  final double blur;
-  const GlassTokens({
-    required this.fill,
-    required this.chrome,
-    required this.border,
-    required this.highlight,
-    required this.shadow,
-    required this.base,
-    required this.glows,
-    this.blur = 24,
-  });
-
-  static const light = GlassTokens(
-    fill: Color(0xA8FFFFFF),
-    chrome: Color(0xC7FFFFFF),
-    border: Color(0xB3FFFFFF),
-    highlight: Color(0x66FFFFFF),
-    shadow: Color(0x141B1F3B),
-    base: Color(0xFFF1F2F8),
-    glows: [Color(0x4D7C74FF), Color(0x4040C4FF), Color(0x33FF9EC4)],
-  );
-  static const dark = GlassTokens(
-    fill: Color(0x1AFFFFFF),
-    chrome: Color(0xB8202230),
-    border: Color(0x24FFFFFF),
-    highlight: Color(0x0FFFFFFF),
-    shadow: Color(0x52000000),
-    base: Color(0xFF0D0E15),
-    glows: [Color(0x596C63FF), Color(0x3329B6F6), Color(0x2EC86BFA)],
-  );
-
-  static GlassTokens of(BuildContext context) =>
-      Theme.of(context).extension<GlassTokens>() ??
-      (Theme.of(context).brightness == Brightness.dark ? dark : light);
-
-  List<BoxShadow> get shadows => [
-    BoxShadow(color: shadow, blurRadius: 28, offset: const Offset(0, 10)),
-  ];
-
-  /// The sheen fades out across the card, so text stays on an even fill.
-  Gradient sheen() => LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [Color.alphaBlend(highlight, fill), fill],
-    stops: const [0, .6],
-  );
-
-  @override
-  GlassTokens copyWith({
-    Color? fill,
-    Color? chrome,
-    Color? border,
-    Color? highlight,
-    Color? shadow,
-    Color? base,
-    List<Color>? glows,
-    double? blur,
-  }) => GlassTokens(
-    fill: fill ?? this.fill,
-    chrome: chrome ?? this.chrome,
-    border: border ?? this.border,
-    highlight: highlight ?? this.highlight,
-    shadow: shadow ?? this.shadow,
-    base: base ?? this.base,
-    glows: glows ?? this.glows,
-    blur: blur ?? this.blur,
-  );
-
-  @override
-  GlassTokens lerp(GlassTokens? other, double t) {
-    if (other == null) return this;
-    return GlassTokens(
-      fill: Color.lerp(fill, other.fill, t)!,
-      chrome: Color.lerp(chrome, other.chrome, t)!,
-      border: Color.lerp(border, other.border, t)!,
-      highlight: Color.lerp(highlight, other.highlight, t)!,
-      shadow: Color.lerp(shadow, other.shadow, t)!,
-      base: Color.lerp(base, other.base, t)!,
-      glows: [
-        for (var i = 0; i < glows.length; i++)
-          Color.lerp(glows[i], other.glows[i % other.glows.length], t)!,
-      ],
-      blur: lerpDouble(blur, other.blur, t)!,
-    );
-  }
-}
-
-/// Translucent glass over an ambient backdrop, with a single accent colour.
+/// Calm, flat, warm-neutral surfaces with hairline borders, serif headings
+/// and a single clay accent, in the manner of a well-made notebook.
 abstract final class AppTheme {
   static const serif = 'NotoSerif';
 
@@ -165,44 +63,50 @@ abstract final class AppTheme {
           seedColor: AppColors.primary,
           brightness: brightness,
         ).copyWith(
-          primary: dark ? const Color(0xFFA9A3FF) : const Color(0xFF5C52DE),
+          primary: dark ? AppColors.primaryDark : AppColors.primary,
+          onPrimary: dark ? AppColors.ink : Colors.white,
+          primaryContainer: dark
+              ? const Color(0xFF4A2E24)
+              : AppColors.clayLight,
+          onPrimaryContainer: dark
+              ? const Color(0xFFF2DDD3)
+              : const Color(0xFF5C2A18),
+          error: dark ? const Color(0xFFE58A80) : AppColors.danger,
           // Page background.
-          surface: dark ? const Color(0xFF12131A) : const Color(0xFFF4F5FA),
+          surface: dark ? const Color(0xFF262624) : AppColors.ivory,
           // Cards, inputs, sheets.
           surfaceContainerLowest: dark
-              ? const Color(0xFF1C1E28)
+              ? const Color(0xFF30302E)
               : const Color(0xFFFFFFFF),
           surfaceContainerLow: dark
-              ? const Color(0xFF20222D)
-              : const Color(0xFFF6F6FB),
+              ? const Color(0xFF2B2B29)
+              : const Color(0xFFF5F4EE),
           surfaceContainer: dark
-              ? const Color(0xFF262834)
-              : const Color(0xFFEEEFF6),
+              ? const Color(0xFF343432)
+              : const Color(0xFFF0EEE6),
           surfaceContainerHigh: dark
-              ? const Color(0xFF2E303D)
-              : const Color(0xFFE6E7F1),
+              ? const Color(0xFF3B3B38)
+              : const Color(0xFFE8E6DC),
           surfaceContainerHighest: dark
-              ? const Color(0xFF373A48)
-              : const Color(0xFFDDDFEB),
-          onSurface: dark ? const Color(0xFFF3F4FA) : const Color(0xFF181A26),
+              ? const Color(0xFF44433F)
+              : const Color(0xFFDEDCD1),
+          onSurface: dark ? AppColors.ivory : AppColors.ink,
           onSurfaceVariant: dark
-              ? const Color(0xFFA3A6B8)
-              : const Color(0xFF5D6074),
-          outline: dark ? const Color(0xFF555869) : const Color(0xFFB3B6C6),
+              ? const Color(0xFFA6A39A)
+              : const Color(0xFF6B6A63),
+          outline: dark ? const Color(0xFF5F5E59) : const Color(0xFFB7B5AA),
           // Hairline borders and dividers.
           outlineVariant: dark
-              ? const Color(0xFF2C2E3B)
-              : const Color(0xFFE1E3EE),
+              ? const Color(0xFF3E3D3A)
+              : const Color(0xFFE5E3D8),
         );
-    final glass = dark ? GlassTokens.dark : GlassTokens.light;
     final base = ThemeData(
       useMaterial3: true,
-      extensions: [glass],
       colorScheme: scheme,
       brightness: brightness,
       fontFamily: 'Inter',
       scaffoldBackgroundColor: scheme.surface,
-      splashFactory: InkSparkle.splashFactory,
+      splashFactory: InkRipple.splashFactory,
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {
           TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
@@ -250,7 +154,7 @@ abstract final class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         isDense: true,
-        fillColor: dark ? const Color(0x14FFFFFF) : const Color(0xB3FFFFFF),
+        fillColor: scheme.surfaceContainerLowest,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 14,
           vertical: 13,
@@ -263,7 +167,7 @@ abstract final class AppTheme {
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           backgroundColor: scheme.primary,
-          foregroundColor: dark ? const Color(0xFF1C1B1A) : Colors.white,
+          foregroundColor: scheme.onPrimary,
           minimumSize: const Size(44, 46),
           iconSize: AppSizes.iconMd,
           elevation: 0,
@@ -280,7 +184,7 @@ abstract final class AppTheme {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           minimumSize: const Size(44, 46),
-          backgroundColor: glass.fill,
+          backgroundColor: scheme.surfaceContainerLowest,
           foregroundColor: scheme.onSurface,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppSizes.radiusMd),
@@ -323,7 +227,9 @@ abstract final class AppTheme {
       navigationRailTheme: NavigationRailThemeData(
         backgroundColor: Colors.transparent,
         indicatorColor: scheme.surfaceContainerHigh,
-        indicatorShape: const StadiumBorder(),
+        indicatorShape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+        ),
         selectedIconTheme: IconThemeData(
           color: scheme.onSurface,
           size: AppSizes.iconLg,
@@ -378,9 +284,7 @@ abstract final class AppTheme {
       ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
-        backgroundColor: dark
-            ? const Color(0xFF2B2E3C)
-            : const Color(0xF0181A26),
+        backgroundColor: dark ? const Color(0xFF3B3B38) : AppColors.ink,
         contentTextStyle: const TextStyle(
           fontFamily: 'Inter',
           fontSize: 13.5,
@@ -393,6 +297,8 @@ abstract final class AppTheme {
       ),
       bottomSheetTheme: BottomSheetThemeData(
         backgroundColor: scheme.surface,
+        dragHandleColor: scheme.outline,
+        dragHandleSize: const Size(36, 4),
         surfaceTintColor: Colors.transparent,
         showDragHandle: true,
         shape: const RoundedRectangleBorder(
@@ -402,22 +308,22 @@ abstract final class AppTheme {
         ),
       ),
       appBarTheme: AppBarTheme(
-        backgroundColor: Colors.transparent,
+        backgroundColor: scheme.surface,
         surfaceTintColor: Colors.transparent,
         foregroundColor: scheme.onSurface,
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: false,
         titleTextStyle: TextStyle(
-          fontFamily: 'Inter',
-          fontSize: 17,
-          fontWeight: FontWeight.w600,
-          letterSpacing: -.2,
+          fontFamily: serif,
+          fontSize: 19,
+          fontWeight: FontWeight.w500,
+          letterSpacing: -.3,
           color: scheme.onSurface,
         ),
       ),
       chipTheme: base.chipTheme.copyWith(
-        backgroundColor: glass.fill,
+        backgroundColor: scheme.surfaceContainerLowest,
         selectedColor: scheme.onSurface,
         secondarySelectedColor: scheme.onSurface,
         checkmarkColor: scheme.surface,
@@ -431,12 +337,47 @@ abstract final class AppTheme {
                 : scheme.onSurface,
           ),
         ),
-        shape: const StadiumBorder(),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+        ),
         side: BorderSide(color: scheme.outlineVariant),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       ),
       switchTheme: SwitchThemeData(
         trackOutlineColor: WidgetStatePropertyAll(scheme.outlineVariant),
+        thumbColor: WidgetStateProperty.resolveWith(
+          (s) =>
+              s.contains(WidgetState.selected) ? Colors.white : scheme.outline,
+        ),
+        trackColor: WidgetStateProperty.resolveWith(
+          (s) => s.contains(WidgetState.selected)
+              ? scheme.primary
+              : scheme.surfaceContainerHigh,
+        ),
+      ),
+      segmentedButtonTheme: SegmentedButtonThemeData(
+        style: SegmentedButton.styleFrom(
+          backgroundColor: scheme.surfaceContainerLowest,
+          foregroundColor: scheme.onSurface,
+          selectedBackgroundColor: scheme.onSurface,
+          selectedForegroundColor: scheme.surface,
+          side: BorderSide(color: scheme.outlineVariant),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+          ),
+        ),
+      ),
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        color: scheme.primary,
+        linearTrackColor: scheme.surfaceContainerHigh,
+      ),
+      cardTheme: CardThemeData(
+        color: scheme.surfaceContainerLowest,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+          side: BorderSide(color: scheme.outlineVariant),
+        ),
       ),
     );
   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/providers.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/storage/storage_settings.dart';
 import '../../../core/widgets/glass.dart';
 
@@ -157,7 +158,7 @@ class _ModeOption extends StatelessWidget {
             ? scheme.primary.withValues(alpha: .08)
             : Colors.transparent,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(AppSizes.radiusLg),
           side: BorderSide(
             color: selected ? scheme.primary : scheme.outlineVariant,
             width: selected ? 1.5 : 1,
