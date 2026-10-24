@@ -191,8 +191,9 @@ class AuthController extends AsyncNotifier<User?> {
     try {
       await ref.read(authRepositoryProvider).signOut();
     } finally {
+      // The workspace watches this session and empties itself; invalidating
+      // it from here would be a circular dependency.
       state = const AsyncData(null);
-      ref.invalidate(workspaceProvider);
       // The app passcode belongs to this session, not to the device.
       await ref.read(appLockProvider.notifier).disable();
     }
@@ -356,6 +357,7 @@ class SettingsController extends Notifier<Map<String, bool>> {
     'overdue': true,
     'completion': true,
     'banner': true,
+    'preview': true,
     'reminder30': false,
     'reminder15': false,
     'reminder7': true,

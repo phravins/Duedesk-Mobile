@@ -53,6 +53,9 @@ void main() {
     final preferences = await SharedPreferences.getInstance();
     await preferences.remove('demoUser');
     await preferences.setBool('onboarding', true);
+    // Nobody is there to answer the notification permission alert, which
+    // would leave the app inactive behind its privacy cover.
+    await preferences.setBool('notificationPermissionAsked', true);
     await bootstrap();
     final demo = find.text('Continue in demo mode');
     await waitFor(tester, demo, scroll: true);
@@ -62,7 +65,9 @@ void main() {
 
     await tester.tap(find.text('Due', skipOffstage: true));
     await waitFor(tester, find.text('Due Items'));
-    await tester.tap(find.byTooltip('Pin obligation').first);
+    // Let the tab transition finish so the outgoing page's cards are gone.
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Pin obligation').hitTestable().first);
     await tester.pumpAndSettle();
     expect(find.byTooltip('Unpin obligation'), findsWidgets);
 

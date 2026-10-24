@@ -15,6 +15,8 @@ import 'package:duedesk/app/router.dart';
 import 'package:duedesk/core/security/app_lock.dart';
 import 'package:duedesk/core/storage/local_store.dart';
 import 'package:duedesk/features/notifications/application/live_updates.dart';
+import 'package:duedesk/features/notifications/application/reminder_scheduler.dart';
+import 'fake_notifications.dart';
 import 'package:duedesk/features/security/presentation/lock_screen.dart';
 import 'package:duedesk/core/storage/storage_settings.dart';
 import 'package:duedesk/features/auth/data/auth_repositories.dart';
@@ -46,6 +48,7 @@ Future<ProviderContainer> boot(
   double textScale = 1,
   bool live = false,
   Map<String, String> secure = const {},
+  FakeSystemNotifications? phone,
 }) async {
   FlutterSecureStorage.setMockInitialValues({...secure});
   tz.initializeTimeZones();
@@ -86,6 +89,9 @@ Future<ProviderContainer> boot(
         const PasscodeHasher(iterations: 1000),
       ),
       biometricAuthProvider.overrideWithValue(FakeBiometrics()),
+      systemNotificationsProvider.overrideWithValue(
+        phone ?? FakeSystemNotifications(),
+      ),
     ],
   );
   addTearDown(container.dispose);
@@ -578,6 +584,20 @@ void main() {
     await tester.pump(const Duration(seconds: 6));
     expect(banner.hitTestable(), findsNothing);
   });
+  testWidgets('Phone reminders are scheduled and a tap opens the item', (
+    tester,
+  ) async {
+    final phone = FakeSystemNotifications();
+    final c = await boot(tester, phone: phone);
+    expect(phone.scheduled, isNotEmpty);
+    expect(phone.scheduled.first.when.isAfter(DateTime.now()), isTrue);
+    phone.tap!('gst');
+    await tester.pumpAndSettle();
+    expect(
+      c.read(routerProvider).routeInformationProvider.value.uri.path,
+      '/due/gst',
+    );
+  });
   testWidgets('Notification centre filters unread and marks items read', (
     tester,
   ) async {
@@ -683,6 +703,11 @@ void main() {
       ('/due/new?templates=true', ThemeMode.light, 'templates-light'),
       ('/settings/storage', ThemeMode.light, 'storage-light'),
       ('/notifications', ThemeMode.light, 'notifications-light'),
+      (
+        '/settings/notifications',
+        ThemeMode.light,
+        'notification-settings-light',
+      ),
       ('/settings/security', ThemeMode.dark, 'security-dark'),
       ('/settings/security/passcode', ThemeMode.light, 'passcode-light'),
     ]) {

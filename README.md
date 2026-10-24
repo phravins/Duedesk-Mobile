@@ -82,7 +82,8 @@ A calm, paper-like interface in the spirit of the Claude app, identical on iOS a
 
 ## Live notifications
 
-- **Notification bar.** New reminders drop in from the top as a banner. Tap to open the obligation (or the inbox when several arrive), swipe up to dismiss; it hides after five seconds. Toggle it under *Notification settings → Live notification bar*.
+- **Phone reminders, even when DueDesk is closed.** Every open obligation in every organisation you can see is scheduled with the phone's own notification centre (`flutter_local_notifications`): one notification per reminder threshold (for example 7, 3, 1 and 0 days before) and one the morning after it becomes overdue. They arrive at the chosen time (8, 9 or 10 AM, or 6 PM) in the organisation's time zone, survive restarts, and tapping one opens the obligation. Plans refresh whenever items or settings change; the soonest 60 are kept to stay within iOS's limit. Signing out or turning off *Phone notifications* cancels them all, and *Show details on the lock screen* can be switched off so notifications only say that something is due. This works with device storage and with a server (from the synced copy). The planner is `planReminders` in `lib/features/notifications/domain/reminders.dart`; scheduling is in `lib/features/notifications/application/`.
+- **In-app notification bar.** While the app is open, new reminders drop in from the top as a banner. Tap to open the obligation (or the inbox when several arrive), swipe up to dismiss; it hides after five seconds. Toggle it under *Notification settings → Live notification bar*.
 - **Reminder engine.** With device storage, `remindersDue` (`lib/features/notifications/domain/reminders.dart`) raises a reminder as each obligation crosses a threshold in its reminder schedule (for example 7, 3, 1 and 0 days before) and when it becomes overdue. Each reminder is raised once, survives restarts and respects the *Overdue alerts* setting. Checks run when the workspace opens, every minute, on resume and after unlocking.
 - **Server mode** refreshes the workspace each minute while online; the server schedules reminders, and teammates' changes surface in the banner. Your own actions are not announced back to you.
 - **Notification centre** with All/Unread filters, Today/Yesterday/Earlier groups, type icons, relative times and swipe-left to mark read.
@@ -98,7 +99,7 @@ A calm, paper-like interface in the spirit of the Claude app, identical on iOS a
 - **Keychain hardening.** Secrets use `first_unlock_this_device`, so they are never restored onto another device from a backup. Signing out, or a fresh password sign-in, removes the passcode.
 - Constant-time verifier comparison and a password strength meter on sign-up.
 
-Platform setup is included: `NSFaceIDUsageDescription` (iOS); `FlutterFragmentActivity`, `USE_BIOMETRIC` and the `app.duedesk/security` channel in `MainActivity.kt` (Android). On Android 8 and earlier, `local_auth` also recommends an AppCompat `LaunchTheme`; switch `android/app/src/main/res/values/styles.xml` if you target those versions.
+Platform setup is included: `NSFaceIDUsageDescription` and the notification-centre delegate in `AppDelegate.swift` (iOS); `FlutterFragmentActivity`, `USE_BIOMETRIC`, the `app.duedesk/security` channel in `MainActivity.kt`, notification permissions and boot receivers, core-library desugaring and a status-bar icon kept from resource shrinking (Android). Some Android manufacturers (for example Xiaomi and Huawei) restrict background work; on those phones people may need to allow DueDesk to run in the background for reminders to arrive on time. On Android 8 and earlier, `local_auth` also recommends an AppCompat `LaunchTheme`; switch `android/app/src/main/res/values/styles.xml` if you target those versions.
 
 ## Interface refresh
 
@@ -214,7 +215,7 @@ Photo-library purpose text, app-scoped Keychain entitlements, and `duedesk://due
 
 `assets/branding/duedesk_mark.svg` is a replaceable temporary DueDesk mark. Platform icons are generated from it. Replace the SVG, full logo, and launcher icons when official branding is available. Inter is bundled with its OFL licence, so typography does not depend on a network request.
 
-Major dependencies: Riverpod, go_router, Dio, Hive CE, shared_preferences, flutter_secure_storage, local_auth, intl, timezone, uuid, cryptography, file_picker, image_picker, pdfrx, connectivity_plus, flutter_svg, shimmer. `pubspec.lock` records resolved versions.
+Major dependencies: Riverpod, go_router, Dio, Hive CE, shared_preferences, flutter_secure_storage, local_auth, flutter_local_notifications, intl, timezone, uuid, cryptography, file_picker, image_picker, pdfrx, connectivity_plus, flutter_svg, shimmer. `pubspec.lock` records resolved versions.
 
 ## Production services
 

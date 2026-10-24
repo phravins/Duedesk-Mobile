@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/security/app_lock.dart';
 import '../core/theme/app_theme.dart';
 import '../features/notifications/application/live_updates.dart';
+import '../features/notifications/application/reminder_scheduler.dart';
 import 'app_frame.dart';
 import 'providers.dart';
 import 'router.dart';
@@ -43,6 +44,9 @@ class _AppState extends ConsumerState<DueDeskApp> with WidgetsBindingObserver {
         ref.read(routerProvider).go('/due/${Uri.encodeComponent(id)}');
       }
     });
+    // Phone notifications for when the app is closed; started after the
+    // link listener so a notification that launched the app opens it.
+    ref.read(reminderSchedulerProvider).start();
   }
 
   @override
@@ -66,6 +70,7 @@ class _AppState extends ConsumerState<DueDeskApp> with WidgetsBindingObserver {
         lock.foregrounded();
         ref.invalidate(todayProvider);
         _tickSoon();
+        ref.read(reminderSchedulerProvider).schedule();
       case AppLifecycleState.inactive:
         ref.read(appObscuredProvider.notifier).set(true);
       case AppLifecycleState.hidden:
