@@ -92,6 +92,11 @@ class MoreScreen extends ConsumerWidget {
                   Icons.lock_outline_rounded,
                   '/settings/security',
                 ),
+                _Entry(
+                  'Backup & export',
+                  Icons.ios_share_rounded,
+                  '/settings/backup',
+                ),
                 _Entry('Storage', Icons.storage_rounded, '/settings/storage'),
               ],
             ),

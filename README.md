@@ -80,6 +80,28 @@ A calm, paper-like interface in the spirit of the Claude app, identical on iOS a
 - **Hand-drawn illustrations** in ink, sand, clay and sage (`assets/illustrations/`) for the welcome screen, onboarding, empty states, the lock screen, the privacy cover and Security.
 - A plain bottom bar on phones and a side rail on tablets.
 
+## Compliance calendar (India)
+
+*More → Compliance calendar* (or the dashboard suggestion) adds common statutory deadlines as recurring obligations in one tap, with owner, authority, category and default reminders filled in:
+
+- **GST:** GSTR-1 (11th), GSTR-3B and payment (20th), GSTR-9 (31 December)
+- **TDS:** deposit (7th) and quarterly returns (31 July, 31 October, 31 January, 31 May)
+- **Advance tax:** 15 June, 15 September, 15 December, 15 March
+- **Income tax return** for audit cases (31 October)
+- **Company (ROC):** DIR-3 KYC (30 September), AOC-4 (30 October), MGT-7 (29 November), shown for an AGM on 30 September
+- **Payroll:** PF and ESI (15th), professional tax (month end; varies by state)
+
+Next dates are computed from today. Obligations already tracked, by title or a known alias such as "GSTR-3B Filing", are skipped, so the setup can be run again safely. The rules live in `lib/features/compliance/domain/compliance_calendar.dart`. They are the usual statutory dates; deadlines are often extended and some depend on the state or filing scheme, so the screen asks people to confirm them with their accountant.
+
+## Backup and export
+
+*More → Backup & export*:
+
+- **Compliance report (PDF)** for accountants and auditors: summary counts, then every obligation grouped as overdue, due today, due soon, in progress, upcoming or completed, with owner, authority, reference and evidence count.
+- **Obligations spreadsheet (CSV)**: one row per obligation; values that a spreadsheet would run as formulas are neutralised.
+- **Calendar file (.ics)**: open obligations as all-day events that repeat like the obligation and carry its reminders as alerts, for Google Calendar or Apple Calendar. It is a snapshot; export again after changes.
+- **Encrypted backup** (device storage, owners): every record, attachment and on-device account verifier in one `.duedesk` file, encrypted with AES-256-GCM using a key derived from a password the person chooses (PBKDF2-SHA256, 210,000 iterations). Save it to Files, iCloud Drive or Google Drive. **Restore** checks the password, shows what the backup contains, replaces the device workspace and signs out. A wrong password or a damaged file is detected, never half-restored. The format is in `lib/features/backup/domain/backup_codec.dart`.
+
 ## Live notifications
 
 - **Phone reminders, even when DueDesk is closed.** Every open obligation in every organisation you can see is scheduled with the phone's own notification centre (`flutter_local_notifications`): one notification per reminder threshold (for example 7, 3, 1 and 0 days before) and one the morning after it becomes overdue. They arrive at the chosen time (8, 9 or 10 AM, or 6 PM) in the organisation's time zone, survive restarts, and tapping one opens the obligation. Plans refresh whenever items or settings change; the soonest 60 are kept to stay within iOS's limit. Signing out or turning off *Phone notifications* cancels them all, and *Show details on the lock screen* can be switched off so notifications only say that something is due. This works with device storage and with a server (from the synced copy). The planner is `planReminders` in `lib/features/notifications/domain/reminders.dart`; scheduling is in `lib/features/notifications/application/`.
@@ -127,6 +149,8 @@ lib/
     widgets/                   Cards, forms, shell, illustrations, loading/error states
   features/
     auth/                      Demo and API authentication repositories
+    backup/                    Encrypted backups, PDF/CSV reports, calendar export
+    compliance/                Indian statutory compliance calendar
     security/                  Lock screen and passcode setup
     due_items/                 Repository contracts, demo/API adapters, workflows
     dashboard/                 Computed summaries and home presentation
@@ -184,6 +208,8 @@ The proposed REST contract is in [docs/API_CONTRACT.md](docs/API_CONTRACT.md). I
 
 ## Build and verification
 
+CI builds on every pull request and push to `main`: `.github/workflows/ios.yml` analyses, tests, builds the iOS app and runs the simulator smoke test; `.github/workflows/android.yml` builds a debug APK, which compiles the Kotlin and Gradle setup the iOS job never touches.
+
 ```bash
 flutter pub get
 dart format .
@@ -215,7 +241,7 @@ Photo-library purpose text, app-scoped Keychain entitlements, and `duedesk://due
 
 `assets/branding/duedesk_mark.svg` is a replaceable temporary DueDesk mark. Platform icons are generated from it. Replace the SVG, full logo, and launcher icons when official branding is available. Inter is bundled with its OFL licence, so typography does not depend on a network request.
 
-Major dependencies: Riverpod, go_router, Dio, Hive CE, shared_preferences, flutter_secure_storage, local_auth, flutter_local_notifications, intl, timezone, uuid, cryptography, file_picker, image_picker, pdfrx, connectivity_plus, flutter_svg, shimmer. `pubspec.lock` records resolved versions.
+Major dependencies: Riverpod, go_router, Dio, Hive CE, shared_preferences, flutter_secure_storage, local_auth, flutter_local_notifications, pdf, intl, timezone, uuid, cryptography, file_picker, image_picker, pdfrx, connectivity_plus, flutter_svg, shimmer. `pubspec.lock` records resolved versions.
 
 ## Production services
 

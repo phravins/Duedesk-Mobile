@@ -19,6 +19,7 @@ import '../features/settings/presentation/settings_screens.dart';
 import '../features/settings/presentation/storage_screen.dart';
 import '../features/security/presentation/lock_screen.dart';
 import '../features/compliance/presentation/compliance_setup_screen.dart';
+import '../features/backup/presentation/backup_screen.dart';
 
 String normalizeDeepLink(Uri uri) =>
     uri.scheme == 'duedesk' && uri.host == 'due'
@@ -197,6 +198,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/settings/security/passcode',
         builder: (_, _) => const PasscodeSetupScreen(),
+      ),
+      GoRoute(
+        path: '/settings/backup',
+        builder: (_, _) => const BackupScreen(),
       ),
       GoRoute(
         path: '/settings/storage',

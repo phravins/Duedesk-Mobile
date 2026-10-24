@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
@@ -16,6 +17,7 @@ import 'package:duedesk/core/security/app_lock.dart';
 import 'package:duedesk/core/storage/local_store.dart';
 import 'package:duedesk/features/notifications/application/live_updates.dart';
 import 'package:duedesk/features/notifications/application/reminder_scheduler.dart';
+import 'package:duedesk/features/backup/application/backup_service.dart';
 import 'fake_notifications.dart';
 import 'package:duedesk/features/security/presentation/lock_screen.dart';
 import 'package:duedesk/core/storage/storage_settings.dart';
@@ -28,6 +30,19 @@ import 'package:duedesk/features/due_items/data/demo_seed.dart';
 import 'package:duedesk/shared/models/models.dart';
 
 final captureKey = GlobalKey();
+
+class FakeFileExporter implements FileExporter {
+  final saved = <String, Uint8List>{};
+  Uint8List? toPick;
+  @override
+  Future<bool> save(String fileName, Uint8List bytes) async {
+    saved[fileName] = bytes;
+    return true;
+  }
+
+  @override
+  Future<Uint8List?> pick() async => toPick;
+}
 
 class FakeBiometrics extends BiometricAuth {
   bool enrolled = true, accept = true;
@@ -49,6 +64,7 @@ Future<ProviderContainer> boot(
   bool live = false,
   Map<String, String> secure = const {},
   FakeSystemNotifications? phone,
+  FakeFileExporter? files,
 }) async {
   FlutterSecureStorage.setMockInitialValues({...secure});
   tz.initializeTimeZones();
@@ -89,6 +105,7 @@ Future<ProviderContainer> boot(
         const PasscodeHasher(iterations: 1000),
       ),
       biometricAuthProvider.overrideWithValue(FakeBiometrics()),
+      fileExporterProvider.overrideWithValue(files ?? FakeFileExporter()),
       systemNotificationsProvider.overrideWithValue(
         phone ?? FakeSystemNotifications(),
       ),
@@ -625,6 +642,24 @@ void main() {
       '/due',
     );
   });
+  testWidgets('Backup & export saves a spreadsheet and a calendar', (
+    tester,
+  ) async {
+    final files = FakeFileExporter();
+    final c = await boot(tester, files: files);
+    c.read(routerProvider).push('/settings/backup');
+    await tester.pumpAndSettle();
+    expect(find.text('Create a backup'), findsOneWidget);
+    await tester.tap(find.text('Obligations spreadsheet (CSV)'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Add deadlines to your calendar (.ics)'));
+    await tester.pumpAndSettle();
+    final csv = files.saved.entries.firstWhere((e) => e.key.endsWith('.csv'));
+    expect(csv.key, startsWith('DueDesk-realoffice-obligations-'));
+    expect(utf8.decode(csv.value), contains('GSTR-3B Filing'));
+    final ics = files.saved.entries.firstWhere((e) => e.key.endsWith('.ics'));
+    expect(utf8.decode(ics.value), contains('BEGIN:VEVENT'));
+  });
   testWidgets('Notification centre filters unread and marks items read', (
     tester,
   ) async {
@@ -736,6 +771,7 @@ void main() {
         'notification-settings-light',
       ),
       ('/compliance', ThemeMode.light, 'compliance-light'),
+      ('/settings/backup', ThemeMode.dark, 'backup-dark'),
       ('/settings/security', ThemeMode.dark, 'security-dark'),
       ('/settings/security/passcode', ThemeMode.light, 'passcode-light'),
     ]) {
