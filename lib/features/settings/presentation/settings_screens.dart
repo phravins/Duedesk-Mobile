@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import '../../../app/providers.dart';
 import '../../../core/security/app_lock.dart';
 import '../../../core/security/secure_screen.dart';
@@ -8,6 +9,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/permissions.dart';
 import '../../../core/widgets/glass.dart';
 import '../../../core/widgets/illustrations.dart';
+import '../../notifications/application/reminder_scheduler.dart';
 import '../../../shared/models/models.dart';
 import '../../../shared/widgets/due_widgets.dart';
 import '../../due_items/presentation/due_detail_screen.dart';
@@ -229,12 +231,22 @@ class NotificationSettingsScreen extends ConsumerWidget {
       title: 'Notification settings',
       child: PageBody(
         children: [
-          if (ref.watch(storageProvider).isDevice)
-            const GlassCard(
-              child: Text(
-                'Preferences are saved on this device. With device storage, reminders arrive in the in-app inbox; push and email need a DueDesk server.',
-              ),
+          GlassCard(
+            child: Row(
+              children: [
+                const DeskIllustration(kind: DeskArt.notifications, size: 64),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    ref.watch(storageProvider).isDevice
+                        ? 'Reminders arrive on this phone even when DueDesk is closed. Email reminders need a DueDesk server.'
+                        : 'Reminders arrive on this phone even when DueDesk is closed. Your server sends email reminders.',
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                ),
+              ],
             ),
+          ),
           const SectionHeader(title: 'Keep me informed'),
           GlassCard(
             padding: const EdgeInsets.all(8),
@@ -246,7 +258,16 @@ class NotificationSettingsScreen extends ConsumerWidget {
                     'Live notification bar',
                     'New reminders slide in at the top while you work',
                   ),
-                  ('push', 'Push notifications', 'Alerts on your device'),
+                  (
+                    'push',
+                    'Phone notifications',
+                    'Reminders on this phone, even when DueDesk is closed',
+                  ),
+                  (
+                    'preview',
+                    'Show details on the lock screen',
+                    'Off: notifications only say something is due',
+                  ),
                   ('email', 'Email reminders', 'A reminder in your inbox'),
                   (
                     'assignment',
@@ -271,9 +292,57 @@ class NotificationSettingsScreen extends ConsumerWidget {
                       style: const TextStyle(fontSize: 12),
                     ),
                     value: settings[key]!,
-                    onChanged: (v) =>
-                        ref.read(settingsProvider.notifier).toggle(key, v),
+                    onChanged: key == 'preview' && settings['push'] == false
+                        ? null
+                        : (v) async {
+                            await ref
+                                .read(settingsProvider.notifier)
+                                .toggle(key, v);
+                            if (key != 'push' || !v) return;
+                            final allowed = await ref
+                                .read(systemNotificationsProvider)
+                                .requestPermission();
+                            if (!allowed && context.mounted) {
+                              feedback(
+                                context,
+                                'Notifications are turned off for DueDesk. Allow them in your phone’s Settings.',
+                              );
+                            }
+                          },
                   ),
+              ],
+            ),
+          ),
+          const SectionHeader(title: 'Reminder time'),
+          GlassCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final hour in ReminderHourController.choices)
+                      ChoiceChip(
+                        label: Text(
+                          DateFormat(
+                            'h:mm a',
+                          ).format(DateTime(2000, 1, 1, hour)),
+                        ),
+                        selected: ref.watch(reminderHourProvider) == hour,
+                        onSelected: (_) =>
+                            ref.read(reminderHourProvider.notifier).set(hour),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Phone reminders arrive at this time, in your organisation’s time zone.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
               ],
             ),
           ),
