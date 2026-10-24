@@ -62,6 +62,11 @@ class MoreScreen extends ConsumerWidget {
                 _Entry('Company', Icons.business_outlined, '/company'),
                 _Entry('Team', Icons.people_outline_rounded, '/team'),
                 _Entry('Categories', Icons.category_outlined, '/categories'),
+                _Entry(
+                  'Compliance calendar',
+                  Icons.event_available_outlined,
+                  '/compliance',
+                ),
                 _Entry('Activity', Icons.history_rounded, '/activity'),
               ],
             ),

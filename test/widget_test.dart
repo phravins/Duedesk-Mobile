@@ -598,6 +598,33 @@ void main() {
       '/due/gst',
     );
   });
+  testWidgets('Compliance calendar adds statutory obligations in one tap', (
+    tester,
+  ) async {
+    final c = await boot(tester);
+    final before = c.read(dueItemsProvider).length;
+    c.read(routerProvider).push('/compliance');
+    await tester.pumpAndSettle();
+    expect(find.text('Compliance calendar'), findsOneWidget);
+    // GST and TDS are preselected; GSTR-3B is already tracked.
+    expect(find.text('Already added'), findsOneWidget);
+    final add = find.textContaining(RegExp(r'^Add \d+ obligations$'));
+    await reveal(tester, add);
+    final label = (tester.widget<Text>(add)).data!;
+    final count = int.parse(RegExp(r'\d+').firstMatch(label)!.group(0)!);
+    await tester.tap(add);
+    await tester.pumpAndSettle();
+    expect(c.read(dueItemsProvider).length, before + count);
+    final gstr1 = c
+        .read(dueItemsProvider)
+        .firstWhere((i) => i.title == 'GSTR-1 (outward supplies)');
+    expect(gstr1.frequency, Frequency.monthly);
+    expect(gstr1.assignedToUserId, 'management');
+    expect(
+      c.read(routerProvider).routeInformationProvider.value.uri.path,
+      '/due',
+    );
+  });
   testWidgets('Notification centre filters unread and marks items read', (
     tester,
   ) async {
@@ -708,6 +735,7 @@ void main() {
         ThemeMode.light,
         'notification-settings-light',
       ),
+      ('/compliance', ThemeMode.light, 'compliance-light'),
       ('/settings/security', ThemeMode.dark, 'security-dark'),
       ('/settings/security/passcode', ThemeMode.light, 'passcode-light'),
     ]) {
