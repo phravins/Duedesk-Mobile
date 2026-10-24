@@ -10,6 +10,8 @@ import '../../../core/widgets/glass.dart';
 import '../../../shared/widgets/due_widgets.dart';
 import '../../../shared/models/models.dart';
 import '../domain/dashboard_summary.dart';
+import '../../compliance/presentation/compliance_setup_screen.dart';
+import '../../../core/widgets/illustrations.dart';
 
 final dashboardProvider = Provider<DashboardSummary>(
   (ref) => DashboardSummary.fromItems(
@@ -237,6 +239,7 @@ class DashboardScreen extends ConsumerWidget {
                 ),
             ],
           ),
+          if (Permissions.manage(user, org.id)) const _ComplianceSuggestion(),
           LayoutBuilder(
             builder: (context, c) {
               if (c.maxWidth < 900) {
@@ -473,6 +476,75 @@ class _WeekDay extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Points owners and admins at the compliance calendar until they have
+/// set it up or said "Not now".
+class _ComplianceSuggestion extends ConsumerStatefulWidget {
+  const _ComplianceSuggestion();
+  @override
+  ConsumerState<_ComplianceSuggestion> createState() =>
+      _ComplianceSuggestionState();
+}
+
+class _ComplianceSuggestionState extends ConsumerState<_ComplianceSuggestion> {
+  @override
+  Widget build(BuildContext context) {
+    final org = ref.watch(organisationProvider);
+    final prefs = ref.watch(preferencesProvider);
+    final key = complianceSuggestionKey(org.id);
+    if (prefs.getBool(key) == true) return const SizedBox.shrink();
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: GlassCard(
+        tint: scheme.primaryContainer.withValues(alpha: .45),
+        padding: const EdgeInsets.fromLTRB(12, 10, 6, 10),
+        child: Row(
+          children: [
+            const DeskIllustration(kind: DeskArt.calendar, size: 52),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Set up your compliance calendar',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  Text(
+                    'GST, TDS, advance tax, ROC and payroll dates in one tap.',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      TextButton(
+                        onPressed: () => context.push('/compliance'),
+                        child: const Text('Set up'),
+                      ),
+                      TextButton(
+                        onPressed: () async {
+                          await prefs.setBool(key, true);
+                          if (mounted) setState(() {});
+                        },
+                        style: TextButton.styleFrom(
+                          foregroundColor: scheme.onSurfaceVariant,
+                        ),
+                        child: const Text('Not now'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
